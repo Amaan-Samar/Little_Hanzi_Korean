@@ -15,17 +15,17 @@ export function useArticleHistory() {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
-        // Validate and migrate if needed (for version compatibility)
         if (Array.isArray(parsed)) {
           articles.value = parsed.map(article => ({
             ...article,
-            // Ensure all required fields exist
             id: article.id || Date.now(),
             title: article.title || 'Untitled Article',
-            koreanContent: article.koreanContent || article.chineseContent || '', // Support legacy data
+            koreanContent: article.koreanContent || article.chineseContent || '',
             englishContent: article.englishContent || '',
             timestamp: article.timestamp || Date.now(),
-            version: article.version || 2 // Bump version for Korean
+            version: article.version || 2,
+            // Track when article was last edited
+            lastEdited: article.lastEdited || article.timestamp || Date.now()
           }))
         }
       }
@@ -50,57 +50,81 @@ export function useArticleHistory() {
            (korean + english).substring(0, 100)
   }
   
-  // Extract title from first line of content
-  const extractTitle = (koreanContent) => {
-    if (!koreanContent || !koreanContent.trim()) {
-      return 'Untitled Article'
+  // Extract title from first line of English content (preferred) or Korean
+  const extractTitle = (koreanContent, englishContent) => {
+    // First try English content
+    if (englishContent && englishContent.trim()) {
+      const firstLine = englishContent.split('\n')[0].trim()
+      if (firstLine && firstLine.length > 0) {
+        return firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine
+      }
     }
-    // Get first line (up to first newline or first 50 characters)
-    const firstLine = koreanContent.split('\n')[0].trim()
-    if (firstLine && firstLine.length > 0) {
-      // Limit title length
-      return firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine
+    
+    // Fallback to Korean content
+    if (koreanContent && koreanContent.trim()) {
+      const firstLine = koreanContent.split('\n')[0].trim()
+      if (firstLine && firstLine.length > 0) {
+        return firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine
+      }
     }
+    
     return 'Untitled Article'
   }
   
   // Save current article to history
   const saveCurrentArticle = (koreanContent, englishContent) => {
     if (!koreanContent || !koreanContent.trim()) {
-      return // Don't save empty articles
+      return
     }
     
     const contentHash = generateContentHash(koreanContent, englishContent)
+    const title = extractTitle(koreanContent, englishContent)
+    const now = Date.now()
     
-    // Check if content has actually changed from last save
+    // Check if we should update an existing article
     if (contentHash === lastContentHash.value && currentArticleId.value) {
-      // Update timestamp of existing article if content hasn't changed much
       const existingArticle = articles.value.find(a => a.id === currentArticleId.value)
       if (existingArticle && 
           existingArticle.koreanContent === koreanContent && 
           existingArticle.englishContent === englishContent) {
-        existingArticle.timestamp = Date.now()
-        existingArticle.title = extractTitle(koreanContent)
+        existingArticle.timestamp = now
+        existingArticle.lastEdited = now
+        existingArticle.title = title
         saveArticles()
+        return
       }
+    }
+    
+    // Check if we already have an article with this exact content
+    const existingArticle = articles.value.find(a => 
+      a.koreanContent === koreanContent && 
+      a.englishContent === (englishContent || '')
+    )
+    
+    if (existingArticle) {
+      existingArticle.timestamp = now
+      existingArticle.lastEdited = now
+      existingArticle.title = title
+      currentArticleId.value = existingArticle.id
+      lastContentHash.value = contentHash
+      saveArticles()
       return
     }
     
-    const title = extractTitle(koreanContent)
-    
+    // Create new article
     const newArticle = {
       id: Date.now(),
       title: title,
       koreanContent: koreanContent,
       englishContent: englishContent || '',
-      timestamp: Date.now(),
+      timestamp: now,
+      lastEdited: now,
       version: 2
     }
     
-    // Add to beginning of array (newest first)
     articles.value.unshift(newArticle)
     
-    // Keep only last 50 articles to prevent localStorage overflow
+    // Keep only last 50 articles
     if (articles.value.length > 50) {
       articles.value = articles.value.slice(0, 50)
     }
@@ -112,12 +136,10 @@ export function useArticleHistory() {
   
   // Schedule auto-save after delay
   const scheduleAutoSave = (koreanContent, englishContent) => {
-    // Clear existing timeout
     if (saveTimeout.value) {
       clearTimeout(saveTimeout.value)
     }
     
-    // Only schedule if there's content
     if (koreanContent && koreanContent.trim()) {
       saveTimeout.value = setTimeout(() => {
         saveCurrentArticle(koreanContent, englishContent)
@@ -164,7 +186,7 @@ export function useArticleHistory() {
     return currentArticleId.value === articleId
   }
   
-  // Get formatted date string
+  // Get formatted date string with edit info
   const formatDate = (timestamp) => {
     const date = new Date(timestamp)
     const now = new Date()
@@ -174,14 +196,14 @@ export function useArticleHistory() {
     const diffDays = Math.floor(diffMs / 86400000)
     
     if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`
-    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
-    if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
     
     return date.toLocaleDateString()
   }
   
-  // Reset current article tracking (for when user clears text)
+  // Reset current article tracking
   const resetCurrentTracking = () => {
     currentArticleId.value = null
     lastContentHash.value = ''

@@ -4,7 +4,7 @@
       <div class="logo_wrapper">
         <RouterLink to="/" class="logo">
           <img class="logo_img"
-            src="/pen.svg"
+            src="/korean.png"
             alt="Company Logo"
           />
           <span 

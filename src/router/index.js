@@ -6,10 +6,10 @@ const router = createRouter({
     {
       path: '/',
       name: 'converter',
-      component: () => import('../components/FontConverter.vue'),
+      component: () => import('../components/KoreanConverter.vue'), // Removed /index.js
     },
     // {
-    //   path: '/about', make change
+    //   path: '/about',
     //   name: 'about',
     //   component: () => import('../views/AboutView.vue'),
     // },

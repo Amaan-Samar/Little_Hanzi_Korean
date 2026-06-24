@@ -3,14 +3,13 @@
     <div v-if="isOpen" class="settings-modal-overlay" @click="handleOverlayClick">
       <div class="settings-modal" :class="{ 'mobile': isMobile }" @click.stop>
         <div class="settings-modal-header">
-          <h2>Settings</h2>
           <button class="close-btn" @click="close">
             <X :size="24" />
           </button>
         </div>
 
         <div class="settings-modal-body">
-          <!-- Font Size - Updates instantly as you slide -->
+          <!-- Font Size -->
           <div class="setting-group">
             <label class="setting-label">Font Size</label>
             <div class="font-size-control">
@@ -27,7 +26,7 @@
             </div>
           </div>
 
-          <!-- Font Family - Updates instantly when clicked -->
+          <!-- Font Family -->
           <div class="setting-group">
             <label class="setting-label">Font Family</label>
             <div class="font-options-grid">
@@ -44,7 +43,7 @@
             </div>
           </div>
 
-          <!-- Display Sections - Updates instantly when toggled -->
+          <!-- Display Sections -->
           <div class="setting-group">
             <label class="setting-label">Display Sections</label>
             <div class="toggle-group">
@@ -63,7 +62,7 @@
             </div>
           </div>
 
-          <!-- Display Order - Updates instantly when changed -->
+          <!-- Display Order -->
           <div class="setting-group">
             <label class="setting-label">Display Order</label>
             <div class="radio-group">
@@ -78,28 +77,23 @@
             </div>
           </div>
 
-          <!-- Interleave Lines - Updates instantly when toggled -->
+          <!-- Interleave Lines -->
           <div class="setting-group">
             <label class="setting-label">Layout Mode</label>
             <div class="toggle-group">
               <label class="toggle-item">
                 <input type="checkbox" v-model="localSettings.interleaveLines" @change="handleInterleaveChange">
-                <span>Interleave Lines (Alternating Korean/English lines)</span>
+                <span>Interleave Lines</span>
               </label>
               <p class="setting-description">
-                When enabled, Korean and English will alternate line by line for easier parallel reading.
+                Alternates Korean and English lines for easier parallel reading.
               </p>
             </div>
           </div>
-        </div>
 
-        <div class="settings-modal-footer">
-          <button class="reset-btn" @click="resetToDefaults">
-            Reset to Defaults
-          </button>
-          <div class="action-buttons">
-            <button class="close-btn-bottom" @click="close">
-              Close
+          <div class="setting-group">
+            <button class="reset-btn" @click="resetToDefaults">
+              Reset to Defaults
             </button>
           </div>
         </div>
@@ -125,7 +119,6 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save', 'reset'])
 
-// Local reactive copy of settings - Korean specific defaults
 const localSettings = ref({ 
   fontSize: 18,
   selectedFont: 'NotoSansSC',
@@ -149,8 +142,8 @@ const fontOptions = [
   { value: 'MaShanZheng', label: 'Ma Shan Zheng', fontFamily: "'Ma Shan Zheng', cursive" }
 ]
 
-// Debounced font size update to prevent too many emits while sliding
 let fontSizeTimeout = null
+
 const handleFontSizeChange = () => {
   if (fontSizeTimeout) clearTimeout(fontSizeTimeout)
   fontSizeTimeout = setTimeout(() => {
@@ -158,7 +151,6 @@ const handleFontSizeChange = () => {
   }, 50)
 }
 
-// Instant updates for other settings
 const handleFontChange = (fontValue) => {
   localSettings.value.selectedFont = fontValue
   emit('save', localSettings.value)
@@ -208,17 +200,15 @@ const resetToDefaults = () => {
   }
   localSettings.value = { ...defaults }
   emit('reset')
-  emit('save', localSettings.value) // Save immediately on reset
+  emit('save', localSettings.value)
 }
 
-// Handle escape key
 const handleEscape = (e) => {
   if (e.key === 'Escape' && props.isOpen) {
     close()
   }
 }
 
-// Reset local settings when modal opens with new props
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     localSettings.value = { ...props.settings }
@@ -251,6 +241,276 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
+  background: rgba(139, 92, 246, 0.08);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.settings-modal {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(30px);
+  border-radius: 24px;
+  width: 75%;
+  max-width: 550px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 25px 50px -12px rgba(139, 92, 246, 0.15);
+}
+
+.settings-modal.mobile {
+  width: 95%;
+  max-height: 90vh;
+  border-radius: 20px;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.settings-modal-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 20px 0;
+  border-bottom: none;
+}
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  color: #6B21A5;
+}
+
+.close-btn:hover {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #7C3AED;
+}
+
+.settings-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 32px;
+}
+
+.setting-group {
+  margin-bottom: 28px;
+}
+
+.setting-group:last-child {
+  margin-bottom: 0;
+}
+
+.setting-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6B21A5;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.setting-description {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8B5CF6;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+.font-size-control {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.size-slider {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(139, 92, 246, 0.15);
+  cursor: pointer;
+  -webkit-appearance: none;
+}
+
+.size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.size-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.size-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7C3AED;
+  min-width: 45px;
+  text-align: center;
+}
+
+.font-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.font-option {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: left;
+  color: #4A1942;
+}
+
+.font-option:hover {
+  background: rgba(139, 92, 246, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+.font-option.active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.1));
+  border-color: #8B5CF6;
+  color: #7C3AED;
+  box-shadow: 0 2px 12px rgba(139, 92, 246, 0.1);
+}
+
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 15px;
+  color: #4A1942;
+}
+
+.toggle-item input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #8B5CF6;
+}
+
+.toggle-item span {
+  cursor: pointer;
+}
+
+.radio-group {
+  display: flex;
+  gap: 24px;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  color: #4A1942;
+}
+
+.radio-item input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #8B5CF6;
+}
+
+.radio-item span {
+  cursor: pointer;
+}
+
+.reset-btn {
+  padding: 10px 20px;
+  background: rgba(254, 202, 202, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 10px;
+  color: #DC2626;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  width: 100%;
+}
+
+.reset-btn:hover {
+  background: rgba(254, 202, 202, 0.5);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .settings-modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .settings-modal-body {
+    padding: 16px 20px 24px;
+  }
+  
+  .font-options-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .radio-group {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+</style>
+
+<!-- <style scoped>
+.settings-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
   display: flex;
@@ -268,7 +528,7 @@ onBeforeUnmount(() => {
 .settings-modal {
   background: white;
   border-radius: 24px;
-  width: 90%;
+  width: 75%;
   max-width: 550px;
   max-height: 85vh;
   display: flex;
@@ -296,17 +556,10 @@ onBeforeUnmount(() => {
 
 .settings-modal-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.settings-modal-header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #2c3e50;
+  padding: 16px 20px 0;
+  border-bottom: none;
 }
 
 .close-btn {
@@ -330,11 +583,11 @@ onBeforeUnmount(() => {
 .settings-modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 20px 24px 32px;
 }
 
 .setting-group {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .setting-group:last-child {
@@ -346,7 +599,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   color: #495057;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -472,20 +725,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.settings-modal-footer {
-  padding: 20px 24px;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 12px;
-}
-
 .reset-btn {
   padding: 10px 20px;
   background: #fee2e2;
@@ -495,6 +734,7 @@ onBeforeUnmount(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  width: 100%;
 }
 
 .reset-btn:hover {
@@ -502,44 +742,14 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
-.close-btn-bottom {
-  padding: 10px 24px;
-  background: #4a6cf7;
-  border: none;
-  border-radius: 10px;
-  color: white;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.close-btn-bottom:hover {
-  background: #3a5ce8;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(74, 108, 247, 0.3);
-}
-
 @media (max-width: 768px) {
-  .settings-modal-header {
-    padding: 16px 20px;
+  .settings-modal {
+    width: 95%;
+    max-height: 90vh;
   }
   
   .settings-modal-body {
-    padding: 20px;
-  }
-  
-  .settings-modal-footer {
-    padding: 16px 20px;
-    flex-direction: column;
-  }
-  
-  .action-buttons {
-    width: 100%;
-  }
-  
-  .reset-btn,
-  .close-btn-bottom {
-    width: 100%;
+    padding: 16px 20px 24px;
   }
   
   .font-options-grid {
@@ -551,4 +761,4 @@ onBeforeUnmount(() => {
     gap: 12px;
   }
 }
-</style>
+</style> -->

@@ -87,6 +87,7 @@ watch(() => props.isOpen, async (newVal) => {
     await nextTick()
     if (textareaRef.value) {
       textareaRef.value.focus()
+      textareaRef.value.select()
     }
   }
 })
@@ -117,13 +118,13 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(139, 92, 246, 0.08);
+  backdrop-filter: blur(20px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3000;
-  animation: fadeIn 0.2s ease;
+  animation: fadeIn 0.3s ease;
 }
 
 @keyframes fadeIn {
@@ -132,27 +133,30 @@ onBeforeUnmount(() => {
 }
 
 .edit-modal {
-  background: white;
-  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(30px);
+  border-radius: 24px;
   width: 90%;
   max-width: 700px;
-  height: 70vh;
-  max-height: 600px;
+  height: 80vh;
+  max-height: 650px;
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s ease;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 25px 50px -12px rgba(139, 92, 246, 0.15);
 }
 
 .edit-modal.mobile {
   width: 95%;
-  height: 80vh;
-  border-radius: 16px;
+  height: 85vh;
+  max-height: none;
+  border-radius: 20px;
 }
 
 @keyframes slideUp {
   from {
-    transform: translateY(50px);
+    transform: translateY(30px);
     opacity: 0;
   }
   to {
@@ -165,121 +169,129 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e9ecef;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+  flex-shrink: 0;
 }
 
 .edit-modal-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #2c3e50;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .close-btn {
-  background: none;
-  border: none;
-  font-size: 28px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  font-size: 24px;
   cursor: pointer;
-  color: #999;
-  transition: color 0.2s;
+  color: #6B21A5;
+  transition: all 0.3s;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
+  padding: 0;
+  line-height: 1;
 }
 
 .close-btn:hover {
-  background: #f8f9fa;
-  color: #333;
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #7C3AED;
 }
 
 .edit-modal-body {
   flex: 1;
-  padding: 20px;
+  padding: 20px 24px;
   overflow: hidden;
+  min-height: 0;
 }
 
 .edit-textarea {
   width: 100%;
   height: 100%;
+  min-height: 200px;
   padding: 16px;
-  border: 1px solid #dee2e6;
+  border: 2px solid rgba(139, 92, 246, 0.1);
   border-radius: 12px;
   font-family: inherit;
-  line-height: 1.6;
+  line-height: 1.8;
   resize: none;
   outline: none;
-  transition: border-color 0.2s;
-  background: #fafbfc;
+  transition: all 0.3s;
+  background: rgba(255, 255, 255, 0.6);
+  color: #1a1a1a;
 }
 
 .edit-textarea:focus {
-  border-color: #4a6cf7;
+  border-color: #8B5CF6;
   background: white;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.06);
 }
 
 .edit-modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 20px;
-  border-top: 1px solid #e9ecef;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(139, 92, 246, 0.08);
+  flex-shrink: 0;
 }
 
 .cancel-btn,
 .save-btn {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 500;
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
   border: none;
+  font-size: 14px;
 }
 
 .cancel-btn {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  color: #495057;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  color: #6B21A5;
 }
 
 .cancel-btn:hover {
-  background: #e9ecef;
+  background: rgba(139, 92, 246, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
 }
 
 .save-btn {
-  background: #4a6cf7;
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
   color: white;
 }
 
 .save-btn:hover {
-  background: #3a5ce8;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(74, 108, 247, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
 }
 
 @media (max-width: 768px) {
-  .edit-modal {
-    width: 95%;
-    height: 85vh;
-  }
-  
   .edit-modal-header {
     padding: 12px 16px;
   }
   
   .edit-modal-body {
-    padding: 12px;
+    padding: 12px 16px;
   }
   
   .edit-modal-footer {
     padding: 12px 16px;
+    flex-direction: column-reverse;
   }
   
   .cancel-btn,
   .save-btn {
-    padding: 8px 16px;
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

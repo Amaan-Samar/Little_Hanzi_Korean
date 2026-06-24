@@ -1,0 +1,1451 @@
+<template>
+  <div class="converter-wrapper">
+    <!-- Header with Logo and Settings -->
+    <div class="app-header">
+      <div class="logo-section">
+        <h1 class="logo">LittleHanzi 한국인</h1>
+      </div>
+      <div class="header-buttons">
+        <button class="history-icon-btn" @click="openHistoryModal" title="Reading History">
+          <BookOpen :size="22" />
+        </button>
+        <button class="settings-icon-btn" @click="openSettingsModal" title="Settings">
+          <Settings :size="24" />
+        </button>
+      </div>
+    </div>
+
+    <!-- History Modal -->
+    <ArticleHistoryModal
+      :isOpen="isHistoryModalOpen"
+      :articles="articles"
+      :isCurrentArticle="isCurrentArticle"
+      :formatDate="formatDate"
+      @close="closeHistoryModal"
+      @load-article="loadArticleIntoEditor"
+      @delete-article="handleDeleteArticle"
+      @delete-all="handleDeleteAllArticles"
+    />
+
+    <div class="main-content">
+      <LoadingSpinner :isLoading="isLoading" :text="loadingText" />
+      
+      <div class="input-display-row">
+        <!-- Korean Text Input -->
+        <div class="text-section" :style="{fontFamily: getFontFamily, fontSize: `${fontSize}px` }">
+          <div class="input-wrapper">
+            <textarea 
+              v-model="inputText" 
+              placeholder="Enter Korean text here..." 
+              class="text-input w-full" 
+            ></textarea>
+            <button 
+              v-if="inputText.trim()" 
+              @click="openEditModal('korean')" 
+              class="edit-btn"
+              title="Edit in popup"
+            >
+              <EditIcon :size="16" />
+            </button>
+          </div>
+          <button @click="clearOrPasteText('korean')" class="action-btn">
+            {{ inputText.trim() ? 'Clear' : 'Paste' }}
+          </button>
+        </div>
+
+        <!-- English Translation Input -->
+        <div class="text-section" :style="{fontSize: `${fontSize}px` }">
+          <div class="input-wrapper">
+            <textarea 
+              v-model="englishText" 
+              placeholder="Enter English translation here..." 
+              class="text-input w-full english-input" 
+            ></textarea>
+            <button 
+              v-if="englishText.trim()" 
+              @click="openEditModal('english')" 
+              class="edit-btn"
+              title="Edit in popup"
+            >
+              <EditIcon :size="16" />
+            </button>
+          </div>
+          <button @click="clearOrPasteText('english')" class="action-btn">
+            {{ englishText.trim() ? 'Clear' : 'Paste' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Edit Modal -->
+      <EditModal
+        :isOpen="isEditModalOpen"
+        :title="editModalTitle"
+        :content="editModalContent"
+        :fontSize="Number(fontSize)"
+        :fontFamily="getFontFamily"
+        @close="closeEditModal"
+        @save="saveEditModalContent"
+      />
+
+      <!-- Settings Modal -->
+      <SettingsModal
+        :isOpen="isSettingsModalOpen"
+        :settings="settings"
+        @close="closeSettingsModal"
+        @save="saveSettings"
+        @reset="resetToDefaults"
+      />
+
+      <div v-if="inputText.trim() && (showEnglish || showKorean)" class="comparison-section">
+        <div class="comparison-display relative">
+          <!-- Render based on display order and visibility toggles -->
+          <div v-for="(block, sentenceId) in comparisonData" :key="sentenceId" class="comparison-block relative">
+            
+            <template v-if="displayOrder === 'en-kr'">
+              <!-- English first, then Korean -->
+              <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box">
+                <div class="english-text" :style="{ fontSize: `${fontSize * 0.8}px`, lineHeight: '1.1' }">
+                  {{ englishSegments[sentenceId] }}
+                </div>
+              </div>
+
+              <div v-if="showKorean" class="line-container">
+                <div class="text-line relative">
+                  <div class="line-words" :style="{ fontFamily: getFontFamily, fontSize: `${fontSize}px` }">
+                    <span v-for="(wordData, wordIndex) in block.words" :key="wordIndex" class="word-group">
+                      <span class="word-with-romanization">
+                        <span class="romanization-above" :style="{ display: showRomanization ? 'flex' : 'none' }">
+                          <span 
+                            v-for="(char, charIndex) in wordData.romanizedChars" 
+                            :key="charIndex"
+                            class="romanization-char"
+                            :style="{ 
+                              fontSize: `${fontSize * 0.5}px`,
+                              minWidth: `${fontSize * 0.6}px`,
+                              textAlign: 'center'
+                            }"
+                          >
+                            {{ char }}
+                          </span>
+                        </span>
+                        <span class="word" :style="{fontWeight: '600'}">
+                          <span v-for="(char, charIndex) in wordData.koreanChars" :key="charIndex" class="korean-char">
+                            {{ char }}
+                          </span>
+                        </span>
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <!-- Korean first, then English -->
+              <div v-if="showKorean" class="line-container">
+                <div class="text-line relative">
+                  <div class="line-words" :style="{ fontFamily: getFontFamily, fontSize: `${fontSize}px` }">
+                    <span v-for="(wordData, wordIndex) in block.words" :key="wordIndex" class="word-group">
+                      <span class="word-with-romanization">
+                        <span class="romanization-above" :style="{ display: showRomanization ? 'flex' : 'none' }">
+                          <span 
+                            v-for="(char, charIndex) in wordData.romanizedChars" 
+                            :key="charIndex"
+                            class="romanization-char"
+                            :style="{ 
+                              fontSize: `${fontSize * 0.5}px`,
+                              minWidth: `${fontSize * 0.6}px`,
+                              textAlign: 'center'
+                            }"
+                          >
+                            {{ char }}
+                          </span>
+                        </span>
+                        <span class="word" :style="{fontWeight: '600'}">
+                          <span v-for="(char, charIndex) in wordData.koreanChars" :key="charIndex" class="korean-char">
+                            {{ char }}
+                          </span>
+                        </span>
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box">
+                <div class="english-text" :style="{ fontSize: `${fontSize * 0.8}px`, lineHeight: '1.1' }">
+                  {{ englishSegments[sentenceId] }}
+                </div>
+              </div>
+            </template>
+
+          </div>
+
+          <div v-if="inputText.trim()" class="quick-actions">
+            <button @click="requestClearAll" class="clear-all-btn">
+              Clear All Text
+            </button>
+          </div>
+
+          <div 
+            class="scroll-spacer"
+            :style="{
+              minHeight: `calc(66vh - ${fontSize * 2}px)`
+            }"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Empty state when both English and Korean are hidden -->
+      <div v-else-if="inputText.trim() && !showEnglish && !showKorean" class="empty-state">
+        <p>Both English and Korean paragraphs are hidden. Enable them in settings.</p>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <ConfirmModal
+      :isOpen="showConfirmModal"
+      title="Clear All Text"
+      message="Are you sure you want to clear all Korean and English text? This action cannot be undone."
+      confirmText="Yes, Clear All"
+      cancelText="Cancel"
+      @confirm="confirmClearAll"
+      @cancel="cancelClearAll"
+    />
+  </div>
+</template>
+
+<script>
+import ArticleHistoryModal from './ArticleHistoryModal.vue';
+import { useArticleHistory } from '../composables/useArticleHistory';
+import { Edit as EditIcon, Settings, BookOpen } from 'lucide-vue-next';
+import EditModal from './EditModal.vue';
+import ConfirmModal from './ConfirmModal.vue';
+import SettingsModal from './SettingsModal.vue';
+import { ref, computed, watch, nextTick } from 'vue';
+import { romanize } from 'koroman';
+import LoadingSpinner from './LoadingSpinner.vue';
+import { useSettings } from '../composables/useSettings';
+
+export default {
+  components: {
+    ArticleHistoryModal,
+    EditModal,
+    ConfirmModal,
+    SettingsModal,
+    LoadingSpinner,
+    BookOpen,
+    EditIcon,
+    Settings,
+  },
+  name: 'KoreanConverter',
+  setup() {
+    const {
+      fontSize,
+      selectedFont,
+      showRomanization,
+      showKorean,
+      showEnglish,
+      displayOrder,
+      resetSettings
+    } = useSettings()
+
+    const {
+      articles,
+      scheduleAutoSave,
+      cancelAutoSave,
+      saveCurrentArticle,
+      deleteArticle,
+      deleteAllArticles,
+      loadArticle,
+      isCurrentArticle,
+      formatDate,
+      resetCurrentTracking
+    } = useArticleHistory()
+    
+    const inputText = ref('');
+    const englishText = ref('');
+    const showConfirmModal = ref(false);
+    const isSettingsModalOpen = ref(false);
+    const containerWidth = ref(800);
+    const isLoading = ref(false);
+    const loadingText = ref('Processing...');
+
+    const isEditModalOpen = ref(false)
+    const editModalType = ref('korean')
+    const editModalTitle = computed(() => editModalType.value === 'korean' ? 'Korean Text' : 'English Translation')
+    const editModalContent = computed(() => editModalType.value === 'korean' ? inputText.value : englishText.value)
+
+    const isHistoryModalOpen = ref(false)
+    const lastSavedContent = ref({ korean: '', english: '' })
+
+    // Watchers for auto-save
+    watch([inputText, englishText], ([newKorean, newEnglish]) => {
+      if (newKorean && newKorean.trim()) {
+        scheduleAutoSave(newKorean, newEnglish)
+        lastSavedContent.value = { korean: newKorean, english: newEnglish }
+      } else {
+        cancelAutoSave()
+        resetCurrentTracking()
+      }
+    }, { deep: true })
+
+    // Modal methods
+    const openHistoryModal = () => {
+      isHistoryModalOpen.value = true
+    }
+
+    const closeHistoryModal = () => {
+      isHistoryModalOpen.value = false
+    }
+
+    const loadArticleIntoEditor = async (article) => {
+      isLoading.value = true
+      loadingText.value = 'Loading article...'
+      
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      inputText.value = article.koreanContent || article.chineseContent || ''
+      englishText.value = article.englishContent || ''
+      cancelAutoSave()
+      resetCurrentTracking()
+      
+      isLoading.value = false
+    }
+
+    const handleDeleteArticle = (articleId) => {
+      deleteArticle(articleId)
+    }
+
+    const handleDeleteAllArticles = () => {
+      deleteAllArticles()
+    }
+
+    // Settings object for modal
+    const settings = computed(() => ({
+      fontSize: Number(fontSize.value),
+      selectedFont: selectedFont.value,
+      showRomanization: showRomanization.value,
+      showEnglish: showEnglish.value,
+      showKorean: showKorean.value,
+      displayOrder: displayOrder.value,
+    }))
+
+    // Core function: split Korean text into words with per-character romanization
+    const getWordsWithRomanization = (text) => {
+      if (!text) return []
+      
+      const tokens = text.split(/(\s+|[.,!?;:()"'])/g).filter(t => t.trim() || t === ' ')
+      
+      const result = []
+      let currentWord = ''
+      
+      for (const token of tokens) {
+        if (token.trim() === '') {
+          if (currentWord) {
+            result.push(processWord(currentWord))
+            currentWord = ''
+          }
+          result.push({
+            korean: token,
+            koreanChars: [],
+            romanized: '',
+            romanizedChars: []
+          })
+        } else if (/[\uAC00-\uD7AF]/.test(token)) {
+          if (currentWord) {
+            result.push(processWord(currentWord))
+            currentWord = ''
+          }
+          result.push(processWord(token))
+        } else if (/[.,!?;:()"']/.test(token)) {
+          if (currentWord) {
+            result.push(processWord(currentWord))
+            currentWord = ''
+          }
+          result.push({
+            korean: token,
+            koreanChars: [],
+            romanized: '',
+            romanizedChars: []
+          })
+        } else {
+          currentWord += token
+        }
+      }
+      
+      if (currentWord) {
+        result.push(processWord(currentWord))
+      }
+      
+      return result
+    }
+
+    // Process a single word into characters with romanization
+    const processWord = (word) => {
+      // Split into individual Korean characters (Jamo)
+      const koreanChars = [...word]
+      
+      // Get romanization for the whole word
+      const romanized = romanize(word, { 
+        usePronunciationRules: true,
+        casingOption: 'lowercase'
+      })
+      
+      // Try to map romanization to individual characters
+      // For Korean, we need to split the romanization per character
+      // This is a simplified approach - for complex syllables, we might need better mapping
+      const romanizedChars = []
+      
+      // For each Korean character, try to get its romanization
+      for (let i = 0; i < koreanChars.length; i++) {
+        const char = koreanChars[i]
+        // Get romanization for this single character
+        const charRomanized = romanize(char, { 
+          usePronunciationRules: true,
+          casingOption: 'lowercase'
+        })
+        romanizedChars.push(charRomanized || '')
+      }
+      
+      return {
+        korean: word,
+        koreanChars: koreanChars,
+        romanized: romanized,
+        romanizedChars: romanizedChars
+      }
+    }
+
+    const openSettingsModal = () => {
+      isSettingsModalOpen.value = true
+    }
+
+    const requestClearAll = () => {
+      if (inputText.value.trim() || englishText.value.trim()) {
+        showConfirmModal.value = true
+      }
+    }
+
+    const confirmClearAll = () => {
+      clearText('both')
+      showConfirmModal.value = false
+    }
+
+    const cancelClearAll = () => {
+      showConfirmModal.value = false
+    }
+
+    const closeSettingsModal = () => {
+      isSettingsModalOpen.value = false
+    }
+
+    const saveSettings = (newSettings) => {
+      fontSize.value = newSettings.fontSize
+      selectedFont.value = newSettings.selectedFont
+      showRomanization.value = newSettings.showRomanization
+      showEnglish.value = newSettings.showEnglish
+      showKorean.value = newSettings.showKorean
+      displayOrder.value = newSettings.displayOrder
+      closeSettingsModal()
+    }
+
+    const resetToDefaults = () => {
+      resetSettings()
+      closeSettingsModal()
+    }
+
+    const openEditModal = (type) => {
+      editModalType.value = type
+      isEditModalOpen.value = true
+    }
+
+    const closeEditModal = () => {
+      isEditModalOpen.value = false
+    }
+
+    const saveEditModalContent = (newContent) => {
+      if (editModalType.value === 'korean') {
+        inputText.value = newContent
+      } else {
+        englishText.value = newContent
+      }
+      closeEditModal()
+    }
+
+    // Font configurations
+    const fonts = {
+      NotoSansSC: "'Noto Sans SC', 'Inter', sans-serif",
+      NotoSerifSC: "'Noto Serif SC', 'Georgia', serif",
+      Inter: "'Inter', 'Noto Sans SC', sans-serif",
+      Roboto: "'Roboto', 'Noto Sans SC', sans-serif",
+      Poppins: "'Poppins', 'Noto Sans SC', sans-serif",
+      ZCOOLKuaiLe: "'ZCOOL KuaiLe', cursive",
+      MaShanZheng: "'Ma Shan Zheng', cursive",
+    };
+
+    const getFontFamily = computed(() => fonts[selectedFont.value]);
+
+    const breakEnglishText = (englishText, koreanSegments) => {
+      if (!englishText.trim()) return {};
+      
+      const normalizedText = englishText
+        .replace(/\r\n/g, '\n')
+        .replace(/\n\s*\n(\s*\n)*/g, '\n\n');
+      
+      const englishParagraphs = normalizedText
+        .split(/\n\n/)
+        .map(para => para.trim())
+        .filter(para => para);
+      
+      const result = {};
+      const koreanSegmentKeys = koreanSegments ? Object.keys(koreanSegments) : [];
+      
+      englishParagraphs.forEach((paragraph, index) => {
+        if (index < koreanSegmentKeys.length) {
+          result[koreanSegmentKeys[index]] = paragraph;
+        }
+      });
+      
+      return result;
+    };
+
+    const englishSegments = computed(() => {
+      return breakEnglishText(englishText.value, comparisonData.value);
+    });
+
+    const pasteFromClipboard = async (target = null) => {
+      isLoading.value = true;
+      loadingText.value = 'Pasting from clipboard...';
+      
+      try {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const clipboardText = await navigator.clipboard.readText();
+        const targetType = target || 'korean';
+        
+        loadingText.value = 'Processing text...';
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        if (targetType === 'korean') {
+          inputText.value = clipboardText;
+        } else {
+          englishText.value = clipboardText;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error('Failed to read clipboard contents: ', error);
+        loadingText.value = 'Failed to paste. Try again.';
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
+    const clearText = (type = 'both') => {
+      if (type === 'korean' || type === 'both') {
+        inputText.value = '';
+      }
+      
+      if (type === 'english' || type === 'both') {
+        englishText.value = '';
+      }
+      
+      if (type === 'both' || (type === 'korean' && !inputText.value.trim())) {
+        cancelAutoSave()
+        resetCurrentTracking()
+      }
+    }
+
+    const clearOrPasteText = (type) => {
+      const text = type === 'korean' ? inputText.value : englishText.value;
+      
+      if (text.trim()) {
+        clearText(type);
+      } else {
+        pasteFromClipboard(type);
+      }
+    };
+
+    // Updated comparison data for Korean
+    const comparisonData = computed(() => {
+      if (!inputText.value) return {};
+      
+      const normalizedText = inputText.value
+        .replace(/\r\n/g, '\n')
+        .replace(/\n\s*\n(\s*\n)*/g, '\n\n');
+      
+      const koreanParagraphs = normalizedText
+        .split(/\n\n/)
+        .map(para => para.trim())
+        .filter(para => para);
+      
+      const result = {};
+      
+      koreanParagraphs.forEach((paragraph, index) => {
+        const sentenceId = index;
+        result[sentenceId] = {
+          words: getWordsWithRomanization(paragraph)
+        };
+      });
+      
+      return result;
+    });
+
+    return {
+      articles,
+      isHistoryModalOpen,
+      openHistoryModal,
+      closeHistoryModal,
+      loadArticleIntoEditor,
+      handleDeleteArticle,
+      handleDeleteAllArticles,
+      isCurrentArticle,
+      formatDate,
+
+      // Data
+      inputText,
+      englishText,
+      selectedFont,
+      fontSize,
+      showRomanization,
+      showEnglish,
+      showKorean,
+      displayOrder,
+
+      isLoading,
+      loadingText,
+      
+      // Computed
+      getFontFamily,
+      comparisonData,
+      englishSegments,
+      settings,
+      
+      // Methods
+      clearOrPasteText,
+      clearAllText: clearText,
+      
+      // Modal related
+      EditIcon,
+      Settings,
+      isEditModalOpen,
+      editModalTitle,
+      editModalContent,
+      openEditModal,
+      closeEditModal,
+      saveEditModalContent,
+      
+      // Settings modal
+      isSettingsModalOpen,
+      openSettingsModal,
+      closeSettingsModal,
+      saveSettings,
+      resetToDefaults,
+
+      showConfirmModal,
+      requestClearAll,
+      confirmClearAll,
+      cancelClearAll,
+    };
+  },
+};
+</script>
+
+<style scoped>
+/* App Header */
+.app-header {
+  position: sticky;
+  top: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 50%, #A78BFA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.history-icon-btn,
+.settings-icon-btn {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  color: #6B21A5;
+}
+
+.history-icon-btn:hover,
+.settings-icon-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.3);
+  transform: scale(1.05);
+}
+
+.settings-icon-btn:hover {
+  transform: rotate(90deg);
+}
+
+/* Main Background - Light Berry Gradient */
+.converter-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 25%, #FCE7F3 60%, #ECFDF5 100%);
+  position: relative;
+}
+
+/* Add subtle decorative elements */
+.converter-wrapper::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(196, 181, 253, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.converter-wrapper::after {
+  content: '';
+  position: fixed;
+  bottom: -50%;
+  left: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Input Display Row - Grid Layout for Side by Side */
+.input-display-row {
+  margin: 20px auto;
+  padding: 5px 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+}
+
+.text-section {
+  width: 100%;
+  padding: 0;
+  margin-bottom: 0;
+}
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+.text-input {
+  width: 100% !important;
+  min-height: 120px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(139, 92, 246, 0.15);
+  border-radius: 12px;
+  font-size: 16px;
+  transition: all 0.3s;
+  resize: vertical;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.8;
+  color: #1a1a1a;
+  box-sizing: border-box;
+  display: block;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.text-input::placeholder {
+  color: #A78BFA;
+  opacity: 0.5;
+}
+
+.english-input {
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.english-input:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.08) !important;
+}
+
+.english-input::placeholder {
+  color: #6EE7B7;
+  opacity: 0.5;
+}
+
+.action-btn {
+  padding: 8px 20px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 8px;
+  color: #6B21A5;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.action-btn:hover {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #7C3AED;
+  transform: translateY(-1px);
+}
+
+.edit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  color: #6B21A5;
+  z-index: 10;
+}
+
+.edit-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: #8B5CF6;
+  color: #7C3AED;
+  transform: scale(1.05);
+}
+
+/* Comparison Section */
+.comparison-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  overflow-x: hidden;
+}
+
+.comparison-display {
+  max-width: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.comparison-block {
+  margin-bottom: 24px;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.line-container {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(139, 92, 246, 0.08);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.06);
+  width: 100%;
+  overflow-x: auto;
+  word-wrap: break-word;
+  word-break: break-word;
+  transition: all 0.3s;
+}
+
+.line-container:hover {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 24px rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+.text-line {
+  display: block;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Word and Romanization Styles */
+.line-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: flex-start;
+}
+
+.word-group {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.word-with-romanization {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.romanization-above {
+  display: flex;
+  gap: 0px;
+  justify-content: center;
+  margin-bottom: 2px;
+  flex-wrap: nowrap;
+}
+
+.romanization-char {
+  color: #8B5CF6;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: inline-block;
+  opacity: 0.7;
+}
+
+.word {
+  display: inline-flex;
+  font-weight: 600;
+  color: #1a1a1a;
+  gap: 0px;
+}
+
+.korean-char {
+  display: inline-block;
+}
+
+.english-translation-box {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.08);
+}
+
+.english-text {
+  color: #065F46;
+  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #8B5CF6;
+  font-style: italic;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+}
+
+/* Quick Actions */
+.quick-actions {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.clear-all-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(254, 202, 202, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 8px;
+  color: #DC2626;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.clear-all-btn:hover {
+  background: rgba(254, 202, 202, 0.7);
+  transform: translateY(-1px);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.scroll-spacer {
+  display: block;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 8px 16px;
+  }
+  
+  .logo {
+    font-size: 18px;
+  }
+  
+  .input-display-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 5px 0.5rem;
+    margin: 10px auto;
+  }
+  
+  .text-section {
+    padding: 0;
+  }
+  
+  .text-input {
+    min-height: 100px;
+    padding: 12px;
+    font-size: 15px;
+  }
+  
+  .comparison-section {
+    padding: 0 0.5rem;
+  }
+  
+  .line-container {
+    padding: 12px;
+  }
+  
+  .line-words {
+    gap: 4px 8px;
+  }
+  
+  .romanization-char {
+    font-size: 0.5em !important;
+    min-width: 0.6em !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .input-display-row {
+    gap: 12px;
+    padding: 5px 0.25rem;
+  }
+  
+  .text-input {
+    min-height: 80px;
+    padding: 10px;
+    font-size: 14px;
+  }
+  
+  .line-words {
+    gap: 2px 6px;
+  }
+  
+  .line-container {
+    padding: 8px;
+  }
+  
+  .english-text {
+    font-size: 0.9em;
+  }
+  
+  .action-btn {
+    padding: 6px 16px;
+    font-size: 12px;
+  }
+}
+</style>
+<!-- 
+<style scoped>
+/* Header */
+.app-header {
+  position: sticky;
+  top: 0;
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #4a6cf7 0%, #6c5ce7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.history-icon-btn,
+.settings-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #495057;
+}
+
+.history-icon-btn:hover,
+.settings-icon-btn:hover {
+  background: #f8f9fa;
+  transform: scale(1.05);
+}
+
+.settings-icon-btn:hover {
+  transform: rotate(90deg);
+}
+
+/* Main Content */
+.main-content {
+  display: block;
+}
+
+.input-display-row {
+  margin: 20px auto;
+  padding: 5px;
+  display: block;
+  width: 100%;
+  max-width: 1200px;
+}
+
+.text-section {
+  width: 100%;
+  padding: 0 1rem;
+  margin-bottom: 20px;
+}
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.text-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s;
+  resize: vertical;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+}
+
+.english-input {
+  border-color: #5dade2 !important;
+  outline-color: #5dade2 !important;
+}
+
+.action-btn {
+  padding: 8px 20px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #f8f9fa;
+  border-color: #4a6cf7;
+  color: #4a6cf7;
+}
+
+.edit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #6c757d;
+  z-index: 10;
+}
+
+.edit-btn:hover {
+  background: #4a6cf7;
+  border-color: #4a6cf7;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* Comparison Section */
+.comparison-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  overflow-x: hidden;
+}
+
+.comparison-display {
+  max-width: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.comparison-block {
+  margin-bottom: 24px;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.line-container {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  overflow-x: auto;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.text-line {
+  display: block;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Word and Romanization Styles */
+.line-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: flex-start;
+}
+
+.word-group {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.word-with-romanization {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.romanization-above {
+  display: flex;
+  gap: 0px;
+  justify-content: center;
+  margin-bottom: 2px;
+  flex-wrap: nowrap;
+}
+
+.romanization-char {
+  color: #9ca3af;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: inline-block;
+}
+
+.word {
+  display: inline-flex;
+  font-weight: 600;
+  color: #1a1a1a;
+  gap: 0px;
+}
+
+.korean-char {
+  display: inline-block;
+}
+
+.english-translation-box {
+  background-color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 8px;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.english-text {
+  color: #2c3e50;
+  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #868e96;
+  font-style: italic;
+}
+
+.relative {
+  position: relative;
+}
+
+.converter-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.quick-actions {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.clear-all-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-all-btn:hover {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+.scroll-spacer {
+  display: block;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 8px 16px;
+  }
+  
+  .logo {
+    font-size: 18px;
+  }
+  
+  .input-display-row {
+    margin: 10px auto;
+  }
+  
+  .text-section {
+    padding: 0 0.5rem;
+  }
+  
+  .comparison-section {
+    padding: 0 0.5rem;
+  }
+  
+  .line-container {
+    padding: 12px;
+  }
+  
+  .line-words {
+    gap: 4px 8px;
+  }
+  
+  .romanization-char {
+    font-size: 0.5em !important;
+    min-width: 0.6em !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .line-words {
+    gap: 2px 6px;
+  }
+  
+  .line-container {
+    padding: 8px;
+  }
+  
+  .english-text {
+    font-size: 0.9em;
+  }
+}
+</style> -->

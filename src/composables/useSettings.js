@@ -12,7 +12,7 @@ export function useSettings() {
         
         // Migrate from old Chinese settings if needed
         const migrated = {
-          fontSize: parsed.fontSize ?? 18,
+          fontSize: parsed.fontSize ?? 14,
           selectedFont: parsed.selectedFont ?? 'NotoSansSC',
           // Migrate old Chinese setting names to Korean
           showRomanization: parsed.showRomanization ?? parsed.showPinyin ?? true,
@@ -22,7 +22,14 @@ export function useSettings() {
           displayOrder: parsed.displayOrder === 'en-cn' ? 'en-kr' : 
                        parsed.displayOrder === 'cn-en' ? 'kr-en' : 
                        parsed.displayOrder ?? 'kr-en',
-          interleaveLines: parsed.interleaveLines ?? false
+          interleaveLines: parsed.interleaveLines ?? false,
+          // Migrate old percentage values to absolute pixel values
+          romanizationFontSize: typeof parsed.romanizationFontSize === 'number' && parsed.romanizationFontSize < 1 
+            ? Math.round(parsed.romanizationFontSize * (parsed.fontSize || 14)) 
+            : parsed.romanizationFontSize ?? 8,
+          englishFontSize: typeof parsed.englishFontSize === 'number' && parsed.englishFontSize < 1
+            ? Math.round(parsed.englishFontSize * (parsed.fontSize || 14))
+            : parsed.englishFontSize ?? 12
         }
         
         return migrated
@@ -41,15 +48,17 @@ export function useSettings() {
     }
   }
 
-  // Default settings - Korean optimized
+  // Default settings - Korean optimized with absolute pixel values
   const defaultSettings = {
-    fontSize: 18,
+    fontSize: 14,
     selectedFont: 'NotoSansSC',
     showRomanization: true,
     showKorean: true,
     showEnglish: true,
     displayOrder: 'kr-en',
-    interleaveLines: false
+    interleaveLines: false,
+    romanizationFontSize: 8, // Absolute pixel value
+    englishFontSize: 12 // Absolute pixel value
   }
 
   const savedSettings = loadSettings()
@@ -62,6 +71,8 @@ export function useSettings() {
   const showEnglish = ref(savedSettings?.showEnglish ?? defaultSettings.showEnglish)
   const displayOrder = ref(savedSettings?.displayOrder ?? defaultSettings.displayOrder)
   const interleaveLines = ref(savedSettings?.interleaveLines ?? defaultSettings.interleaveLines)
+  const romanizationFontSize = ref(savedSettings?.romanizationFontSize ?? defaultSettings.romanizationFontSize)
+  const englishFontSize = ref(savedSettings?.englishFontSize ?? defaultSettings.englishFontSize)
 
   // Save settings whenever any setting changes
   const saveCurrentSettings = () => {
@@ -72,12 +83,14 @@ export function useSettings() {
       showKorean: showKorean.value,
       showEnglish: showEnglish.value,
       displayOrder: displayOrder.value,
-      interleaveLines: interleaveLines.value
+      interleaveLines: interleaveLines.value,
+      romanizationFontSize: romanizationFontSize.value,
+      englishFontSize: englishFontSize.value
     })
   }
 
   // Watch all settings and save on change
-  watch([fontSize, selectedFont, showRomanization, showKorean, showEnglish, displayOrder, interleaveLines], () => {
+  watch([fontSize, selectedFont, showRomanization, showKorean, showEnglish, displayOrder, interleaveLines, romanizationFontSize, englishFontSize], () => {
     saveCurrentSettings()
   }, { deep: true })
 
@@ -90,6 +103,8 @@ export function useSettings() {
     showEnglish.value = defaultSettings.showEnglish
     displayOrder.value = defaultSettings.displayOrder
     interleaveLines.value = defaultSettings.interleaveLines
+    romanizationFontSize.value = defaultSettings.romanizationFontSize
+    englishFontSize.value = defaultSettings.englishFontSize
   }
 
   return {
@@ -100,6 +115,8 @@ export function useSettings() {
     showEnglish,
     displayOrder,
     interleaveLines,
+    romanizationFontSize,
+    englishFontSize,
     resetSettings,
     saveCurrentSettings
   }

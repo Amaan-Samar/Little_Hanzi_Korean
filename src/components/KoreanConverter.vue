@@ -103,10 +103,14 @@
             
             <template v-if="displayOrder === 'en-kr'">
               <!-- English first, then Korean -->
-              <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box">
-                <div class="english-text" :style="{ fontSize: `${fontSize * 0.8}px`, lineHeight: '1.1' }">
-                  {{ englishSegments[sentenceId] }}
-                </div>
+              <!-- <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box"> -->
+                <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box" :style="{ fontFamily: getFontFamily }">
+                  <div class="english-text" :style="{ 
+                    fontSize: `${englishFontSize}px`, 
+                    lineHeight: '1' 
+                  }">
+                    {{ englishSegments[sentenceId] }}
+                  </div>
               </div>
 
               <div v-if="showKorean" class="line-container">
@@ -120,15 +124,15 @@
                             :key="charIndex"
                             class="romanization-char"
                             :style="{ 
-                              fontSize: `${fontSize * 0.5}px`,
-                              minWidth: `${fontSize * 0.6}px`,
+                              fontSize: `${romanizationFontSize}px`,
+                              minWidth: `${romanizationFontSize * 0.6}px`,
                               textAlign: 'center'
                             }"
                           >
                             {{ char }}
                           </span>
                         </span>
-                        <span class="word" :style="{fontWeight: '600'}">
+                        <span class="word" :style="{fontWeight: '400'}">
                           <span v-for="(char, charIndex) in wordData.koreanChars" :key="charIndex" class="korean-char">
                             {{ char }}
                           </span>
@@ -153,15 +157,15 @@
                             :key="charIndex"
                             class="romanization-char"
                             :style="{ 
-                              fontSize: `${fontSize * 0.5}px`,
-                              minWidth: `${fontSize * 0.6}px`,
+                              fontSize: `${romanizationFontSize}px`,
+                              minWidth: `${romanizationFontSize * 0.6}px`,
                               textAlign: 'center'
                             }"
                           >
                             {{ char }}
                           </span>
                         </span>
-                        <span class="word" :style="{fontWeight: '600'}">
+                        <span class="word" :style="{fontWeight: '400'}">
                           <span v-for="(char, charIndex) in wordData.koreanChars" :key="charIndex" class="korean-char">
                             {{ char }}
                           </span>
@@ -172,8 +176,11 @@
                 </div>
               </div>
 
-              <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box">
-                <div class="english-text" :style="{ fontSize: `${fontSize * 0.8}px`, lineHeight: '1.1' }">
+              <div v-if="showEnglish && englishSegments[sentenceId]" class="english-translation-box" :style="{ fontFamily: getFontFamily }">
+                <div class="english-text" :style="{ 
+                  fontSize: `${englishFontSize}px`, 
+                  lineHeight: '1.1' 
+                }">
                   {{ englishSegments[sentenceId] }}
                 </div>
               </div>
@@ -222,7 +229,7 @@ import { Edit as EditIcon, Settings, BookOpen } from 'lucide-vue-next';
 import EditModal from './EditModal.vue';
 import ConfirmModal from './ConfirmModal.vue';
 import SettingsModal from './SettingsModal.vue';
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { romanize } from 'koroman';
 import LoadingSpinner from './LoadingSpinner.vue';
 import { useSettings } from '../composables/useSettings';
@@ -247,6 +254,8 @@ export default {
       showKorean,
       showEnglish,
       displayOrder,
+      romanizationFontSize,
+      englishFontSize,
       resetSettings
     } = useSettings()
 
@@ -267,7 +276,6 @@ export default {
     const englishText = ref('');
     const showConfirmModal = ref(false);
     const isSettingsModalOpen = ref(false);
-    const containerWidth = ref(800);
     const isLoading = ref(false);
     const loadingText = ref('Processing...');
 
@@ -329,6 +337,8 @@ export default {
       showEnglish: showEnglish.value,
       showKorean: showKorean.value,
       displayOrder: displayOrder.value,
+      romanizationFontSize: romanizationFontSize.value,
+      englishFontSize: englishFontSize.value
     }))
 
     // Core function: split Korean text into words with per-character romanization
@@ -383,24 +393,15 @@ export default {
 
     // Process a single word into characters with romanization
     const processWord = (word) => {
-      // Split into individual Korean characters (Jamo)
       const koreanChars = [...word]
-      
-      // Get romanization for the whole word
       const romanized = romanize(word, { 
         usePronunciationRules: true,
         casingOption: 'lowercase'
       })
       
-      // Try to map romanization to individual characters
-      // For Korean, we need to split the romanization per character
-      // This is a simplified approach - for complex syllables, we might need better mapping
       const romanizedChars = []
-      
-      // For each Korean character, try to get its romanization
       for (let i = 0; i < koreanChars.length; i++) {
         const char = koreanChars[i]
-        // Get romanization for this single character
         const charRomanized = romanize(char, { 
           usePronunciationRules: true,
           casingOption: 'lowercase'
@@ -446,6 +447,8 @@ export default {
       showEnglish.value = newSettings.showEnglish
       showKorean.value = newSettings.showKorean
       displayOrder.value = newSettings.displayOrder
+      romanizationFontSize.value = newSettings.romanizationFontSize
+      englishFontSize.value = newSettings.englishFontSize
       closeSettingsModal()
     }
 
@@ -611,6 +614,8 @@ export default {
       showEnglish,
       showKorean,
       displayOrder,
+      romanizationFontSize,
+      englishFontSize,
 
       isLoading,
       loadingText,
@@ -650,6 +655,7 @@ export default {
   },
 };
 </script>
+
 <style scoped>
 /* App Header */
 .app-header {
@@ -786,8 +792,8 @@ export default {
 
 .english-input {
   width: 100%;
-  min-height: 40px;
-  padding: 12px;
+  min-height: 30px;
+  padding: 8px;
   background: var(--bg-input);
   backdrop-filter: blur(10px);
   border: var(--border-primary-strong);
@@ -895,8 +901,8 @@ export default {
   word-break: break-word;
   overflow-wrap: break-word;
   white-space: normal;
-  line-height: 1.8;
-  gap: 6px 12px;
+  line-height: 1.2;
+  /* gap: 3px 3px; */
 }
 
 .word-group {
@@ -923,7 +929,7 @@ export default {
 .romanization-char {
   color: var(--primary);
   font-weight: 400;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.1px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   display: inline-block;
   opacity: 0.7;
@@ -931,7 +937,7 @@ export default {
 
 .word {
   display: inline-flex;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text);
   gap: 0px;
 }
@@ -952,7 +958,7 @@ export default {
 .english-text {
   color: var(--g-800);
   line-height: 1.6;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: inherit; /* Inherits from parent which has the selected font */
   white-space: pre-wrap;
   word-wrap: break-word;
   word-break: break-word;
@@ -1076,359 +1082,3 @@ export default {
   }
 }
 </style>
-<!-- 
-<style scoped>
-/* Header */
-.app-header {
-  position: sticky;
-  top: 0;
-  background: white;
-  border-bottom: 1px solid #e9ecef;
-  padding: 12px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 100;
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-}
-
-.logo {
-  font-size: 20px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #4a6cf7 0%, #6c5ce7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-}
-
-.header-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.history-icon-btn,
-.settings-icon-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  color: #495057;
-}
-
-.history-icon-btn:hover,
-.settings-icon-btn:hover {
-  background: #f8f9fa;
-  transform: scale(1.05);
-}
-
-.settings-icon-btn:hover {
-  transform: rotate(90deg);
-}
-
-/* Main Content */
-.main-content {
-  display: block;
-}
-
-.input-display-row {
-  margin: 20px auto;
-  padding: 5px;
-  display: block;
-  width: 100%;
-  max-width: 1200px;
-}
-
-.text-section {
-  width: 100%;
-  padding: 0 1rem;
-  margin-bottom: 20px;
-}
-
-.input-wrapper {
-  position: relative;
-  width: 100%;
-}
-
-.text-input {
-  width: 100%;
-  min-height: 40px;
-  padding: 12px;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  font-size: 14px;
-  transition: all 0.2s;
-  resize: vertical;
-  font-family: inherit;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-.text-input:focus {
-  outline: none;
-  border-color: #4a6cf7;
-  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
-}
-
-.english-input {
-  border-color: #5dade2 !important;
-  outline-color: #5dade2 !important;
-}
-
-.action-btn {
-  padding: 8px 20px;
-  margin-top: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  background: white;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  color: #495057;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: #f8f9fa;
-  border-color: #4a6cf7;
-  color: #4a6cf7;
-}
-
-.edit-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  color: #6c757d;
-  z-index: 10;
-}
-
-.edit-btn:hover {
-  background: #4a6cf7;
-  border-color: #4a6cf7;
-  color: white;
-  transform: scale(1.05);
-}
-
-/* Comparison Section */
-.comparison-section {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-  overflow-x: hidden;
-}
-
-.comparison-display {
-  max-width: 100%;
-  width: 100%;
-  overflow-x: hidden;
-}
-
-.comparison-block {
-  margin-bottom: 24px;
-  width: 100%;
-  overflow-x: hidden;
-}
-
-.line-container {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  width: 100%;
-  overflow-x: auto;
-  word-wrap: break-word;
-  word-break: break-word;
-}
-
-.text-line {
-  display: block;
-  word-wrap: break-word;
-  white-space: normal;
-  overflow-wrap: break-word;
-}
-
-/* Word and Romanization Styles */
-.line-words {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  align-items: flex-start;
-}
-
-.word-group {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.word-with-romanization {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.romanization-above {
-  display: flex;
-  gap: 0px;
-  justify-content: center;
-  margin-bottom: 2px;
-  flex-wrap: nowrap;
-}
-
-.romanization-char {
-  color: #9ca3af;
-  font-weight: 400;
-  letter-spacing: 0.5px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  display: inline-block;
-}
-
-.word {
-  display: inline-flex;
-  font-weight: 600;
-  color: #1a1a1a;
-  gap: 0px;
-}
-
-.korean-char {
-  display: inline-block;
-}
-
-.english-translation-box {
-  background-color: rgba(255, 255, 255, 0.3);
-  margin-bottom: 8px;
-  word-wrap: break-word;
-  word-break: break-word;
-  white-space: normal;
-  overflow-wrap: break-word;
-}
-
-.english-text {
-  color: #2c3e50;
-  line-height: 1.6;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #868e96;
-  font-style: italic;
-}
-
-.relative {
-  position: relative;
-}
-
-.converter-wrapper {
-  width: 100%;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-.quick-actions {
-  max-width: 1200px;
-  margin: 20px auto;
-  padding: 0 1rem;
-  text-align: center;
-}
-
-.clear-all-btn {
-  padding: 8px 20px;
-  font-size: 13px;
-  font-weight: 600;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  color: #dc2626;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.clear-all-btn:hover {
-  background: #fecaca;
-  transform: translateY(-1px);
-}
-
-.scroll-spacer {
-  display: block;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .app-header {
-    padding: 8px 16px;
-  }
-  
-  .logo {
-    font-size: 18px;
-  }
-  
-  .input-display-row {
-    margin: 10px auto;
-  }
-  
-  .text-section {
-    padding: 0 0.5rem;
-  }
-  
-  .comparison-section {
-    padding: 0 0.5rem;
-  }
-  
-  .line-container {
-    padding: 12px;
-  }
-  
-  .line-words {
-    gap: 4px 8px;
-  }
-  
-  .romanization-char {
-    font-size: 0.5em !important;
-    min-width: 0.6em !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .line-words {
-    gap: 2px 6px;
-  }
-  
-  .line-container {
-    padding: 8px;
-  }
-  
-  .english-text {
-    font-size: 0.9em;
-  }
-}
-</style> -->

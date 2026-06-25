@@ -1,99 +1,238 @@
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="settings-modal-overlay" @click="handleOverlayClick">
-      <div class="settings-modal" :class="{ 'mobile': isMobile }" @click.stop>
-        <div class="settings-modal-header">
-          <button class="close-btn" @click="close">
-            <X :size="24" />
-          </button>
-        </div>
+    <div v-if="isOpen" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/5 backdrop-blur-md animate-fadeIn" @click="handleOverlayClick">
+      <div class="relative bg-white/85 backdrop-blur-xl rounded-2xl w-[90%] max-w-[520px] max-h-[90vh] flex flex-col animate-slideUp border border-white/50 shadow-2xl" :class="{ 'w-[92%] max-h-[90vh] rounded-xl': isMobile }" @click.stop>
+        
+        <!-- Floating Close Button -->
+        <button class="absolute -top-2.5 -right-2.5 w-8 h-8 rounded-full bg-white border border-black/5 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-gray-50 hover:border-black/10 text-gray-400 hover:text-gray-600 shadow-md hover:shadow-lg z-10" @click="close">
+          <X :size="16" />
+        </button>
 
-        <div class="settings-modal-body">
-          <!-- Font Size -->
-          <div class="setting-group">
-            <label class="setting-label">Font Size</label>
-            <div class="font-size-control">
-              <input 
-                type="range" 
-                v-model="localSettings.fontSize" 
-                min="12" 
-                max="32" 
-                step="1" 
-                class="size-slider"
-                @input="handleFontSizeChange"
-              />
-              <span class="size-value">{{ localSettings.fontSize }}px</span>
+        <div class="flex-1 overflow-y-auto p-6 pb-8 scrollbar-thin scrollbar-thumb-gray-200/50 scrollbar-track-transparent">
+          
+          <!-- Live Preview Section -->
+          <div class="mb-6 bg-gradient-to-br from-purple-50/50 to-blue-50/50 rounded-xl p-4 border border-purple-100/50">
+            <label class="block text-[11px] font-semibold text-purple-600 uppercase tracking-wider mb-3">Live Preview</label>
+            <div class="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-white/50">
+              <!-- Korean with Romanization Preview -->
+              <div class="mb-3" :style="{ fontFamily: getSelectedFontFamily() }">
+                <div class="flex flex-col items-start">
+                  <!-- Romanization above Korean -->
+                  <div class="flex gap-0 mb-0.5" v-if="localSettings.showRomanization">
+                    <span 
+                      v-for="(char, index) in previewKoreanChars" 
+                      :key="index"
+                      class="text-purple-500 font-light"
+                      :style="{ fontSize: `${Math.min(localSettings.romanizationFontSize, localSettings.fontSize)}px` }"
+                    >
+                      {{ getRomanizationForChar(char) }}
+                    </span>
+                  </div>
+                  <!-- Korean text -->
+                  <div class="flex gap-0 font-semibold" :style="{ fontSize: `${localSettings.fontSize}px` }">
+                    <span v-for="(char, index) in previewKoreanChars" :key="index">
+                      {{ char }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- English Preview -->
+              <div v-if="localSettings.showEnglish" class="mt-2 pt-2 border-t border-gray-100/50" :style="{ fontFamily: getSelectedFontFamily() }">
+                <div :style="{ fontSize: `${Math.min(localSettings.englishFontSize, localSettings.fontSize)}px` }">
+                  <span class="text-gray-700">Hello, this is a preview</span>
+                </div>
+              </div>
+              
+              <!-- Display order indicator -->
+              <div class="mt-2 text-[10px] text-gray-400 flex items-center gap-2">
+                <span class="font-medium">Order:</span>
+                <span class="px-2 py-0.5 bg-gray-100 rounded-full">
+                  {{ localSettings.displayOrder === 'kr-en' ? 'Korean → English' : 'English → Korean' }}
+                </span>
+                <span v-if="localSettings.interleaveLines" class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">
+                  Interleaved
+                </span>
+              </div>
             </div>
           </div>
 
-          <!-- Font Family -->
-          <div class="setting-group">
-            <label class="setting-label">Font Family</label>
-            <div class="font-options-grid">
-              <button
-                v-for="font in fontOptions"
-                :key="font.value"
-                class="font-option"
-                :class="{ active: localSettings.selectedFont === font.value }"
-                :style="{ fontFamily: font.fontFamily }"
-                @click="handleFontChange(font.value)"
+          <!-- Korean Font Size -->
+          <div class="mb-6 last:mb-0">
+            <label class="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Korean Font Size</label>
+            <div class="flex items-center gap-3.5 mb-3.5">
+              <button 
+                class="w-9 h-9 rounded-full border border-black/5 bg-white cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-500 hover:bg-gray-50 hover:border-black/10 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                @click="decreaseFontSize"
+                :disabled="localSettings.fontSize <= 12"
               >
-                {{ font.label }}
+                <Minus :size="16" />
+              </button>
+              <span class="text-lg font-semibold text-gray-800 min-w-[48px] text-center">{{ localSettings.fontSize }}</span>
+              <button 
+                class="w-9 h-9 rounded-full border border-black/5 bg-white cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-500 hover:bg-gray-50 hover:border-black/10 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                @click="increaseFontSize"
+                :disabled="localSettings.fontSize >= 32"
+              >
+                <Plus :size="16" />
+              </button>
+            </div>
+            <div class="flex gap-1.5 flex-wrap">
+              <button
+                v-for="size in fontSizePresets"
+                :key="size"
+                class="px-2.5 py-1 border border-black/5 rounded-md bg-white cursor-pointer text-xs font-medium transition-all duration-200 text-gray-500 hover:bg-gray-50 hover:border-black/10"
+                :class="{ 'bg-gray-100 border-gray-300 text-gray-700 shadow-sm': localSettings.fontSize === size }"
+                @click="setFontSize(size)"
+              >
+                {{ size }}
               </button>
             </div>
           </div>
 
+          <!-- Romanization Font Size -->
+          <div class="mb-6 last:mb-0">
+            <label class="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Romanization Size</label>
+            <div class="flex items-center gap-3.5">
+              <button 
+                class="w-9 h-9 rounded-full border border-black/5 bg-white cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-500 hover:bg-gray-50 hover:border-black/10 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                @click="decreaseRomanizationSize"
+                :disabled="localSettings.romanizationFontSize <= 4"
+              >
+                <Minus :size="16" />
+              </button>
+              <input 
+                type="number" 
+                v-model.number="localSettings.romanizationFontSize"
+                class="w-16 text-center text-lg font-semibold text-gray-800 bg-white border border-black/10 rounded-lg py-1.5 px-2 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+                min="4"
+                :max="localSettings.fontSize"
+                @input="handleRomanizationInput"
+                @blur="validateRomanizationInput"
+              />
+              <button 
+                class="w-9 h-9 rounded-full border border-black/5 bg-white cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-500 hover:bg-gray-50 hover:border-black/10 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                @click="increaseRomanizationSize"
+                :disabled="localSettings.romanizationFontSize >= localSettings.fontSize"
+              >
+                <Plus :size="16" />
+              </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Maximum: {{ localSettings.fontSize }}px (same as Korean)</p>
+          </div>
+
+          <!-- English Font Size -->
+          <div class="mb-6 last:mb-0">
+            <label class="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">English Size</label>
+            <div class="flex items-center gap-3.5">
+              <button 
+                class="w-9 h-9 rounded-full border border-black/5 bg-white cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-500 hover:bg-gray-50 hover:border-black/10 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                @click="decreaseEnglishSize"
+                :disabled="localSettings.englishFontSize <= 4"
+              >
+                <Minus :size="16" />
+              </button>
+              <input 
+                type="number" 
+                v-model.number="localSettings.englishFontSize"
+                class="w-16 text-center text-lg font-semibold text-gray-800 bg-white border border-black/10 rounded-lg py-1.5 px-2 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+                min="4"
+                :max="localSettings.fontSize"
+                @input="handleEnglishInput"
+                @blur="validateEnglishInput"
+              />
+              <button 
+                class="w-9 h-9 rounded-full border border-black/5 bg-white cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-500 hover:bg-gray-50 hover:border-black/10 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                @click="increaseEnglishSize"
+                :disabled="localSettings.englishFontSize >= localSettings.fontSize"
+              >
+                <Plus :size="16" />
+              </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Maximum: {{ localSettings.fontSize }}px (same as Korean)</p>
+          </div>
+
+          <!-- Font Family -->
+          <div class="mb-6 last:mb-0">
+            <label class="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Font Family</label>
+            <div class="relative font-select-wrapper">
+              <button 
+                class="w-full px-4 py-3 bg-white border border-black/5 rounded-lg flex justify-between items-center cursor-pointer transition-all duration-200 text-gray-600 text-sm hover:bg-gray-50 hover:border-black/10"
+                :style="{ fontFamily: getSelectedFontFamily() }"
+                @click="toggleFontDropdown"
+              >
+                <span>{{ getSelectedFontLabel() }}</span>
+                <ChevronDown :size="16" class="transition-transform duration-200" :class="{ 'rotate-180': isFontDropdownOpen }" />
+              </button>
+              <div v-if="isFontDropdownOpen" class="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-black/5 rounded-lg max-h-[200px] overflow-y-auto z-10 shadow-lg animate-slideDown">
+                <button
+                  v-for="font in fontOptions"
+                  :key="font.value"
+                  class="w-full px-4 py-2.5 bg-transparent border-none text-left cursor-pointer transition-all duration-200 text-gray-600 text-sm hover:bg-purple-50"
+                  :class="{ 'bg-purple-50/50 text-purple-700': localSettings.selectedFont === font.value }"
+                  :style="{ fontFamily: font.fontFamily }"
+                  @click="handleFontChange(font.value)"
+                >
+                  {{ font.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Display Sections -->
-          <div class="setting-group">
-            <label class="setting-label">Display Sections</label>
-            <div class="toggle-group">
-              <label class="toggle-item">
-                <input type="checkbox" v-model="localSettings.showRomanization" @change="handleShowRomanizationChange">
-                <span>Show Romanization</span>
+          <div class="mb-6 last:mb-0">
+            <label class="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Display Sections</label>
+            <div class="flex flex-col gap-3">
+              <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-600">
+                <input type="checkbox" v-model="localSettings.showRomanization" class="w-4.5 h-4.5 cursor-pointer accent-purple-500" @change="handleShowRomanizationChange">
+                <span>Romanization</span>
               </label>
-              <label class="toggle-item">
-                <input type="checkbox" v-model="localSettings.showKorean" @change="handleShowKoreanChange">
-                <span>Show Korean</span>
+              <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-600">
+                <input type="checkbox" v-model="localSettings.showKorean" class="w-4.5 h-4.5 cursor-pointer accent-purple-500" @change="handleShowKoreanChange">
+                <span>Korean</span>
               </label>
-              <label class="toggle-item">
-                <input type="checkbox" v-model="localSettings.showEnglish" @change="handleShowEnglishChange">
-                <span>Show English</span>
+              <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-600">
+                <input type="checkbox" v-model="localSettings.showEnglish" class="w-4.5 h-4.5 cursor-pointer accent-purple-500" @change="handleShowEnglishChange">
+                <span>English</span>
               </label>
             </div>
           </div>
 
           <!-- Display Order -->
-          <div class="setting-group">
-            <label class="setting-label">Display Order</label>
-            <div class="radio-group">
-              <label class="radio-item">
-                <input type="radio" v-model="localSettings.displayOrder" value="en-kr" @change="handleDisplayOrderChange">
+          <div class="mb-6 last:mb-0">
+            <label class="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Display Order</label>
+            <div class="flex gap-6" :class="{ 'flex-col gap-3': isMobile }">
+              <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                <input type="radio" v-model="localSettings.displayOrder" value="en-kr" class="w-4.5 h-4.5 cursor-pointer accent-purple-500" @change="handleDisplayOrderChange">
                 <span>English → Korean</span>
               </label>
-              <label class="radio-item">
-                <input type="radio" v-model="localSettings.displayOrder" value="kr-en" @change="handleDisplayOrderChange">
+              <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                <input type="radio" v-model="localSettings.displayOrder" value="kr-en" class="w-4.5 h-4.5 cursor-pointer accent-purple-500" @change="handleDisplayOrderChange">
                 <span>Korean → English</span>
               </label>
             </div>
           </div>
 
           <!-- Interleave Lines -->
-          <div class="setting-group">
-            <label class="setting-label">Layout Mode</label>
-            <div class="toggle-group">
-              <label class="toggle-item">
-                <input type="checkbox" v-model="localSettings.interleaveLines" @change="handleInterleaveChange">
+          <div class="mb-6 last:mb-0">
+            <label class="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Layout Mode</label>
+            <div class="flex flex-col gap-3">
+              <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-600">
+                <input type="checkbox" v-model="localSettings.interleaveLines" class="w-4.5 h-4.5 cursor-pointer accent-purple-500" @change="handleInterleaveChange">
                 <span>Interleave Lines</span>
               </label>
-              <p class="setting-description">
-                Alternates Korean and English lines for easier parallel reading.
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Alternates Korean and English lines for easier parallel reading
               </p>
             </div>
           </div>
 
-          <div class="setting-group">
-            <button class="reset-btn" @click="resetToDefaults">
-              Reset to Defaults
+          <div class="mt-2 flex gap-3">
+            <button class="flex-1 px-5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-red-600 font-medium cursor-pointer transition-all duration-200 hover:bg-red-100 hover:-translate-y-0.5" @click="resetToDefaults">
+              Reset to defaults
+            </button>
+            <button class="flex-1 px-5 py-2.5 bg-purple-50 border border-purple-200 rounded-lg text-purple-600 font-medium cursor-pointer transition-all duration-200 hover:bg-purple-100 hover:-translate-y-0.5" @click="close">
+              Done
             </button>
           </div>
         </div>
@@ -103,8 +242,9 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { X } from 'lucide-vue-next'
+import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
+import { X, Minus, Plus, ChevronDown } from 'lucide-vue-next'
+import { romanize } from 'koroman'
 
 const props = defineProps({
   isOpen: {
@@ -127,10 +267,14 @@ const localSettings = ref({
   showEnglish: true,
   displayOrder: 'kr-en',
   interleaveLines: false,
+  romanizationFontSize: 10,
+  englishFontSize: 14,
   ...props.settings 
 })
 
 const isMobile = ref(false)
+const isFontDropdownOpen = ref(false)
+const fontSizePresets = [12, 14, 16, 18, 20, 24, 28, 32]
 
 const fontOptions = [
   { value: 'NotoSansSC', label: 'Noto Sans SC', fontFamily: "'Noto Sans SC', sans-serif" },
@@ -142,9 +286,139 @@ const fontOptions = [
   { value: 'MaShanZheng', label: 'Ma Shan Zheng', fontFamily: "'Ma Shan Zheng', cursive" }
 ]
 
-let fontSizeTimeout = null
+// Preview Korean characters
+const previewKoreanChars = ['안', '녕', '하', '세', '요']
 
-const handleFontSizeChange = () => {
+// Helper function to get romanization for a character
+const getRomanizationForChar = (char) => {
+  try {
+    return romanize(char, { 
+      usePronunciationRules: true,
+      casingOption: 'lowercase'
+    })
+  } catch {
+    return char
+  }
+}
+
+let fontSizeTimeout = null
+let inputTimeout = null
+
+const getSelectedFontLabel = () => {
+  const font = fontOptions.find(f => f.value === localSettings.value.selectedFont)
+  return font ? font.label : 'Noto Sans SC'
+}
+
+const getSelectedFontFamily = () => {
+  const font = fontOptions.find(f => f.value === localSettings.value.selectedFont)
+  return font ? font.fontFamily : "'Noto Sans SC', sans-serif"
+}
+
+const toggleFontDropdown = () => {
+  isFontDropdownOpen.value = !isFontDropdownOpen.value
+}
+
+// Korean font size controls
+const increaseFontSize = () => {
+  if (localSettings.value.fontSize < 32) {
+    localSettings.value.fontSize += 2
+    emitSave()
+  }
+}
+
+const decreaseFontSize = () => {
+  if (localSettings.value.fontSize > 12) {
+    localSettings.value.fontSize -= 2
+    emitSave()
+  }
+}
+
+const setFontSize = (size) => {
+  localSettings.value.fontSize = size
+  emitSave()
+}
+
+// Romanization font size controls
+const increaseRomanizationSize = () => {
+  if (localSettings.value.romanizationFontSize < localSettings.value.fontSize) {
+    localSettings.value.romanizationFontSize += 1
+    emitSave()
+  }
+}
+
+const decreaseRomanizationSize = () => {
+  if (localSettings.value.romanizationFontSize > 4) {
+    localSettings.value.romanizationFontSize -= 1
+    emitSave()
+  }
+}
+
+const handleRomanizationInput = () => {
+  if (inputTimeout) clearTimeout(inputTimeout)
+  
+  const value = localSettings.value.romanizationFontSize
+  if (isNaN(value) || value < 4) {
+    localSettings.value.romanizationFontSize = 4
+  } else if (value > localSettings.value.fontSize) {
+    localSettings.value.romanizationFontSize = localSettings.value.fontSize
+  }
+  
+  inputTimeout = setTimeout(() => {
+    emitSave()
+  }, 300)
+}
+
+const validateRomanizationInput = () => {
+  const value = localSettings.value.romanizationFontSize
+  if (isNaN(value) || value < 4) {
+    localSettings.value.romanizationFontSize = 4
+  } else if (value > localSettings.value.fontSize) {
+    localSettings.value.romanizationFontSize = localSettings.value.fontSize
+  }
+  emitSave()
+}
+
+// English font size controls
+const increaseEnglishSize = () => {
+  if (localSettings.value.englishFontSize < localSettings.value.fontSize) {
+    localSettings.value.englishFontSize += 1
+    emitSave()
+  }
+}
+
+const decreaseEnglishSize = () => {
+  if (localSettings.value.englishFontSize > 4) {
+    localSettings.value.englishFontSize -= 1
+    emitSave()
+  }
+}
+
+const handleEnglishInput = () => {
+  if (inputTimeout) clearTimeout(inputTimeout)
+  
+  const value = localSettings.value.englishFontSize
+  if (isNaN(value) || value < 4) {
+    localSettings.value.englishFontSize = 4
+  } else if (value > localSettings.value.fontSize) {
+    localSettings.value.englishFontSize = localSettings.value.fontSize
+  }
+  
+  inputTimeout = setTimeout(() => {
+    emitSave()
+  }, 300)
+}
+
+const validateEnglishInput = () => {
+  const value = localSettings.value.englishFontSize
+  if (isNaN(value) || value < 4) {
+    localSettings.value.englishFontSize = 4
+  } else if (value > localSettings.value.fontSize) {
+    localSettings.value.englishFontSize = localSettings.value.fontSize
+  }
+  emitSave()
+}
+
+const emitSave = () => {
   if (fontSizeTimeout) clearTimeout(fontSizeTimeout)
   fontSizeTimeout = setTimeout(() => {
     emit('save', localSettings.value)
@@ -153,6 +427,7 @@ const handleFontSizeChange = () => {
 
 const handleFontChange = (fontValue) => {
   localSettings.value.selectedFont = fontValue
+  isFontDropdownOpen.value = false
   emit('save', localSettings.value)
 }
 
@@ -181,10 +456,12 @@ const checkMobile = () => {
 }
 
 const handleOverlayClick = () => {
-  close()
+  // Don't close on overlay click - user must click the close button or Done
+  // This prevents accidental closing
 }
 
 const close = () => {
+  isFontDropdownOpen.value = false
   emit('close')
 }
 
@@ -196,7 +473,9 @@ const resetToDefaults = () => {
     showKorean: true,
     showEnglish: true,
     displayOrder: 'kr-en',
-    interleaveLines: false
+    interleaveLines: false,
+    romanizationFontSize: 10,
+    englishFontSize: 14
   }
   localSettings.value = { ...defaults }
   emit('reset')
@@ -209,9 +488,20 @@ const handleEscape = (e) => {
   }
 }
 
+// Close font dropdown when clicking outside
+const handleClickOutside = (e) => {
+  if (isFontDropdownOpen.value) {
+    const wrapper = document.querySelector('.font-select-wrapper')
+    if (wrapper && !wrapper.contains(e.target)) {
+      isFontDropdownOpen.value = false
+    }
+  }
+}
+
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     localSettings.value = { ...props.settings }
+    isFontDropdownOpen.value = false
   }
 })
 
@@ -225,59 +515,28 @@ onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
   document.addEventListener('keydown', handleEscape)
+  document.addEventListener('click', handleClickOutside)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', checkMobile)
-  document.removeEventListener('keydown', handleEscape)
+  window.removeEventListener('keydown', handleEscape)
+  window.removeEventListener('click', handleClickOutside)
   if (fontSizeTimeout) clearTimeout(fontSizeTimeout)
+  if (inputTimeout) clearTimeout(inputTimeout)
 })
 </script>
 
 <style scoped>
-.settings-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(139, 92, 246, 0.08);
-  backdrop-filter: blur(20px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  animation: fadeIn 0.3s ease;
-}
-
+/* Animation keyframes */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-.settings-modal {
-  background: var(--bg-card);
-  backdrop-filter: blur(30px);
-  border-radius: var(--radius-2xl);
-  width: 75%;
-  max-width: 550px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: var(--shadow-lg);
-}
-
-.settings-modal.mobile {
-  width: 95%;
-  max-height: 90vh;
-  border-radius: var(--radius-xl);
-}
-
 @keyframes slideUp {
   from {
-    transform: translateY(30px);
+    transform: translateY(20px);
     opacity: 0;
   }
   to {
@@ -286,479 +545,111 @@ onBeforeUnmount(() => {
   }
 }
 
-.settings-modal-header {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 16px 20px 0;
-  border-bottom: none;
-}
-
-.close-btn {
-  background: rgba(255, 255, 255, 0.5);
-  border: var(--border-primary);
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-  color: var(--text-muted);
-}
-
-.close-btn:hover {
-  background: var(--p-100);
-  border-color: var(--primary);
-  color: var(--primary-dark);
-}
-
-.settings-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px 24px 32px;
-}
-
-.setting-group {
-  margin-bottom: 28px;
-}
-
-.setting-group:last-child {
-  margin-bottom: 0;
-}
-
-.setting-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.setting-description {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--primary);
-  line-height: 1.4;
-  opacity: 0.7;
-}
-
-.font-size-control {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.size-slider {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--p-200);
-  cursor: pointer;
-  -webkit-appearance: none;
-}
-
-.size-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--gradient-btn);
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
-}
-
-.size-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.size-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--primary-dark);
-  min-width: 45px;
-  text-align: center;
-}
-
-.font-options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.font-option {
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(10px);
-  border: var(--border-primary);
-  border-radius: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-align: left;
-  color: var(--text-secondary);
-}
-
-.font-option:hover {
-  background: var(--p-100);
-  border-color: var(--primary);
-  transform: translateY(-1px);
-}
-
-.font-option.active {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.1));
-  border-color: var(--primary);
-  color: var(--primary-dark);
-  box-shadow: var(--shadow-primary);
-}
-
-.toggle-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.toggle-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  font-size: 15px;
-  color: var(--text-secondary);
-}
-
-.toggle-item input {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: var(--primary);
-}
-
-.toggle-item span {
-  cursor: pointer;
-}
-
-.radio-group {
-  display: flex;
-  gap: 24px;
-}
-
-.radio-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 15px;
-  color: var(--text-secondary);
-}
-
-.radio-item input {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: var(--primary);
-}
-
-.radio-item span {
-  cursor: pointer;
-}
-
-.reset-btn {
-  padding: 10px 20px;
-  background: var(--r-100);
-  border: 1px solid var(--r-200);
-  border-radius: 10px;
-  color: var(--r-600);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-  width: 100%;
-}
-
-.reset-btn:hover {
-  background: var(--r-200);
-  transform: translateY(-1px);
-}
-
-@media (max-width: 768px) {
-  .settings-modal {
-    width: 95%;
-    max-height: 90vh;
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
   }
-  
-  .settings-modal-body {
-    padding: 16px 20px 24px;
-  }
-  
-  .font-options-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .radio-group {
-    flex-direction: column;
-    gap: 12px;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
-</style>
 
-<!-- <style scoped>
-.settings-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  animation: fadeIn 0.2s ease;
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.animate-slideUp {
+  animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.settings-modal {
-  background: white;
-  border-radius: 24px;
-  width: 75%;
-  max-width: 550px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+.animate-slideDown {
+  animation: slideDown 0.2s ease;
 }
 
-.settings-modal.mobile {
-  width: 95%;
-  max-height: 90vh;
+/* Custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.08);
   border-radius: 20px;
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.15);
 }
 
-.settings-modal-header {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 16px 20px 0;
-  border-bottom: none;
+.scrollbar-thin {
+  scrollbar-width: thin;
 }
 
-.close-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  color: #868e96;
+/* Custom checkbox and radio styles using accent-color */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #8B5CF6;
 }
 
-.close-btn:hover {
-  background: #f8f9fa;
-  color: #2c3e50;
-}
-
-.settings-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px 24px 32px;
-}
-
-.setting-group {
-  margin-bottom: 28px;
-}
-
-.setting-group:last-child {
-  margin-bottom: 0;
-}
-
-.setting-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.setting-description {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #6c757d;
-  line-height: 1.4;
-}
-
-.font-size-control {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.size-slider {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: #e9ecef;
-  cursor: pointer;
+/* Number input styling */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
+  margin: 0;
 }
 
-.size-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #4a6cf7;
-  cursor: pointer;
-  transition: all 0.2s;
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
-.size-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.size-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #4a6cf7;
-  min-width: 45px;
-  text-align: center;
-}
-
-.font-options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.font-option {
-  padding: 10px 16px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
-}
-
-.font-option:hover {
-  background: #e9ecef;
-  border-color: #4a6cf7;
-}
-
-.font-option.active {
-  background: #4a6cf7;
-  border-color: #4a6cf7;
-  color: white;
-}
-
-.toggle-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.toggle-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  font-size: 15px;
-  color: #495057;
-}
-
-.toggle-item input {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.toggle-item span {
-  cursor: pointer;
-}
-
-.radio-group {
-  display: flex;
-  gap: 24px;
-}
-
-.radio-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 15px;
-  color: #495057;
-}
-
-.radio-item input {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.radio-item span {
-  cursor: pointer;
-}
-
-.reset-btn {
-  padding: 10px 20px;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
-  color: #dc2626;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  width: 100%;
-}
-
-.reset-btn:hover {
-  background: #fecaca;
-  transform: translateY(-1px);
-}
-
+/* Mobile responsive adjustments */
 @media (max-width: 768px) {
-  .settings-modal {
-    width: 95%;
+  .w-\[92\%\] {
+    width: 92%;
+  }
+  
+  .max-h-\[90vh\] {
     max-height: 90vh;
   }
   
-  .settings-modal-body {
-    padding: 16px 20px 24px;
-  }
-  
-  .font-options-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .radio-group {
-    flex-direction: column;
-    gap: 12px;
+  .rounded-xl {
+    border-radius: 16px;
   }
 }
-</style> -->
+
+/* Smooth hover transitions for buttons */
+button {
+  transition: all 0.2s ease;
+}
+
+/* Font dropdown custom scroll */
+.font-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+
+.font-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.font-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+}
+
+/* Live preview styles */
+.preview-romanization {
+  transition: all 0.2s ease;
+}
+
+/* Responsive adjustments for preview */
+@media (max-width: 480px) {
+  .preview-container {
+    padding: 12px;
+  }
+}
+</style>

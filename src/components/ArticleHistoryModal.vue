@@ -1,76 +1,94 @@
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="history-modal-overlay" @click="handleOverlayClick">
-      <div class="history-modal" :class="{ 'mobile': isMobile }" @click.stop>
-        <div class="history-modal-header">
-          <button class="close-btn" @click="close">
-            <X :size="24" />
-          </button>
-        </div>
+    <div v-if="isOpen" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/5 backdrop-blur-md animate-fadeIn" @click="handleOverlayClick">
+      <div class="bg-white/90 backdrop-blur-xl rounded-2xl w-[85%] max-w-[600px] max-h-[80vh] flex flex-col shadow-2xl border border-white/20 animate-slideUp" :class="{ 'w-[95%] max-h-[85vh]': isMobile }" @click.stop>
+        
+        <!-- Floating Close Button -->
+        <button class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white shadow-lg border border-gray-100/50 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl hover:bg-gray-50 z-10" @click="close">
+          <X :size="16" class="text-gray-500" />
+        </button>
 
-        <div class="history-modal-body">
-          <div v-if="articles.length === 0" class="empty-history">
-            <BookOpen :size="48" />
-            <p>No saved articles yet</p>
-            <p class="empty-subtitle">Articles you read will appear here</p>
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto p-6 pt-8 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+          <div v-if="articles.length === 0" class="text-center py-16">
+            <BookOpen :size="40" class="mx-auto text-purple-300" />
+            <p class="mt-4 text-sm font-medium text-gray-500">No saved articles yet</p>
+            <p class="text-xs text-gray-400 mt-1">Articles you read will appear here</p>
           </div>
 
-          <div v-else class="articles-list">
-            <div class="list-header">
-              <span>{{ articles.length }} article{{ articles.length === 1 ? '' : 's' }}</span>
-              <button v-if="articles.length > 0" @click="confirmDeleteAll" class="delete-all-btn">
-                <Trash2 :size="16" />
+          <div v-else class="space-y-3">
+            <!-- Header -->
+            <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+              <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">{{ articles.length }} article{{ articles.length === 1 ? '' : 's' }}</span>
+              <button v-if="articles.length > 0" @click="confirmDeleteAll" class="text-xs text-gray-400 hover:text-red-500 transition-colors duration-200 flex items-center gap-1">
+                <Trash2 :size="14" />
                 Delete All
               </button>
             </div>
 
-            <div class="articles-container">
+            <!-- Articles -->
+            <div class="space-y-3">
               <div
                 v-for="article in articles"
                 :key="article.id"
-                class="article-item"
-                :class="{ 'current': isCurrentArticle(article.id) }"
+                class="group relative bg-white/50 rounded-xl border border-gray-100/80 transition-all duration-200 hover:border-purple-200 hover:shadow-md hover:bg-white/80"
+                :class="{ 'border-purple-300 bg-purple-50/50 shadow-sm': isCurrentArticle(article.id) }"
               >
-                <div class="article-content" @click="selectArticle(article)">
-                  <div class="article-header">
-                    <div class="article-title-section">
-                      <h3 class="article-title">{{ article.title }}</h3>
-                      <span v-if="isCurrentArticle(article.id)" class="current-badge">Current</span>
+                <!-- Article Content -->
+                <div class="p-4 pr-12 cursor-pointer" @click="selectArticle(article)">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                      <h3 class="text-sm font-semibold text-gray-800 leading-tight mb-1.5 line-clamp-2">
+                        {{ article.title }}
+                      </h3>
+                      
+                      <!-- Korean Content -->
+                      <p class="text-xs text-gray-700 leading-relaxed mb-1">
+                        <span class="text-[10px] font-medium text-purple-400 uppercase tracking-wider mr-1">KR</span>
+                        {{ truncateText(article.koreanContent, 60) }}
+                      </p>
+                      
+                      <!-- English Content -->
+                      <p class="text-xs text-gray-500 leading-relaxed">
+                        <span class="text-[10px] font-medium text-gray-400 uppercase tracking-wider mr-1">EN</span>
+                        {{ truncateText(article.englishContent, 80) }}
+                      </p>
                     </div>
-                    <span class="article-date">{{ formatDate(article.timestamp) }}</span>
+                    
+                    <span class="text-[10px] text-gray-400 whitespace-nowrap pt-0.5 flex-shrink-0">
+                      {{ formatDate(article.timestamp) }}
+                    </span>
                   </div>
-                  <div class="article-preview">
-                    <span class="preview-label">English:</span>
-                    {{ getEnglishPreview(article.englishContent) }}
-                  </div>
-                  <div class="article-preview korean-preview">
-                    <span class="preview-label">Korean:</span>
-                    {{ getKoreanPreview(article.koreanContent) }}
+                  
+                  <!-- Read More Indicator -->
+                  <div v-if="needsTruncation(article.koreanContent, 60) || needsTruncation(article.englishContent, 80)" class="mt-1.5">
+                    <span class="text-[10px] text-purple-400 font-medium">Read more →</span>
                   </div>
                 </div>
-                <div class="article-actions">
-                  <button 
-                    @click="confirmDeleteArticle(article.id)" 
-                    class="delete-btn"
-                    title="Delete article"
-                  >
-                    <Trash2 :size="18" />
-                  </button>
-                </div>
+
+                <!-- Delete Button -->
+                <button 
+                  @click="confirmDeleteArticle(article.id)" 
+                  class="absolute top-3 right-3 w-7 h-7 rounded-full bg-transparent hover:bg-red-50 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110"
+                  title="Delete article"
+                >
+                  <Trash2 :size="14" class="text-gray-300 group-hover:text-red-400 transition-colors" />
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="history-modal-footer">
-          <button class="close-btn-bottom" @click="close">
+        <!-- Footer -->
+        <div class="p-4 pt-0 flex justify-end">
+          <button class="text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors duration-200 px-4 py-2" @click="close">
             Close
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Confirmation Modal for Delete -->
+    <!-- Confirmation Modal -->
     <ConfirmModal
       :isOpen="showConfirmModal"
       :title="confirmModalTitle"
@@ -130,16 +148,17 @@ const close = () => {
   emit('close')
 }
 
-const getEnglishPreview = (content) => {
-  if (!content) return 'No English translation'
-  const preview = content.replace(/\n/g, ' ').substring(0, 100)
-  return preview + (preview.length >= 100 ? '...' : '')
+const truncateText = (text, maxLength) => {
+  if (!text) return 'No content available'
+  const cleaned = text.replace(/\n/g, ' ').trim()
+  if (cleaned.length <= maxLength) return cleaned
+  return cleaned.substring(0, maxLength) + '...'
 }
 
-const getKoreanPreview = (content) => {
-  if (!content) return 'No Korean text'
-  const preview = content.replace(/\n/g, ' ').substring(0, 80)
-  return preview + (preview.length >= 80 ? '...' : '')
+const needsTruncation = (text, maxLength) => {
+  if (!text) return false
+  const cleaned = text.replace(/\n/g, ' ').trim()
+  return cleaned.length > maxLength
 }
 
 const selectArticle = (article) => {
@@ -199,50 +218,17 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleEscape)
 })
 </script>
-<style scoped>
-.history-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(139, 92, 246, 0.08);
-  backdrop-filter: blur(20px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  animation: fadeIn 0.3s ease;
-}
 
+<style scoped>
+/* Animation keyframes */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-.history-modal {
-  background: var(--bg-card);
-  backdrop-filter: blur(30px);
-  border-radius: var(--radius-2xl);
-  width: 75%;
-  max-width: 700px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: var(--shadow-lg);
-}
-
-.history-modal.mobile {
-  width: 95%;
-  max-height: 90vh;
-  border-radius: var(--radius-xl);
-}
-
 @keyframes slideUp {
   from {
-    transform: translateY(30px);
+    transform: translateY(20px);
     opacity: 0;
   }
   to {
@@ -251,611 +237,72 @@ onBeforeUnmount(() => {
   }
 }
 
-.history-modal-header {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 16px 20px 0;
-  border-bottom: none;
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease;
 }
 
-.close-btn {
-  background: rgba(255, 255, 255, 0.5);
-  border: var(--border-primary);
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-  color: var(--text-muted);
+.animate-slideUp {
+  animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.close-btn:hover {
-  background: var(--p-100);
-  border-color: var(--primary);
-  color: var(--primary-dark);
-}
-
-.history-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0 0;
-}
-
-.empty-history {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--primary);
-}
-
-.empty-history p {
-  margin-top: 16px;
-  font-size: 16px;
-}
-
-.empty-subtitle {
-  font-size: 14px !important;
-  color: var(--p-400);
-  opacity: 0.7;
-}
-
-.articles-list {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.list-header {
-  padding: 12px 20px;
-  background: var(--p-100);
-  border-bottom: var(--border-primary-light);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  color: var(--text-muted);
-  font-weight: 500;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.delete-all-btn {
-  padding: 6px 12px;
-  background: var(--r-100);
-  border: 1px solid var(--r-200);
-  border-radius: var(--radius-sm);
-  color: var(--r-600);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.3s;
-}
-
-.delete-all-btn:hover {
-  background: var(--r-200);
-  transform: translateY(-1px);
-}
-
-.articles-container {
-  padding: 8px 12px;
-}
-
-.article-item {
-  display: flex;
-  align-items: stretch;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
-  border: var(--border-primary-light);
-  border-radius: var(--radius-md);
-  margin-bottom: 12px;
-  transition: all 0.3s;
+/* Line clamping for titles */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.article-item:hover {
-  border-color: var(--primary);
-  box-shadow: var(--shadow-primary);
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.8);
+/* Custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
 }
 
-.article-item.current {
-  border-color: var(--primary);
-  background: var(--p-100);
-  box-shadow: var(--shadow-primary-hover);
-}
-
-.article-content {
-  flex: 1;
-  padding: 16px 20px;
-  cursor: pointer;
-}
-
-.article-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.article-title-section {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.article-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text);
-  word-break: break-word;
-}
-
-.current-badge {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--primary-dark);
-  background: var(--p-100);
-  padding: 2px 10px;
-  border-radius: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.article-date {
-  font-size: 12px;
-  color: var(--primary);
-  opacity: 0.7;
-  white-space: nowrap;
-}
-
-.article-preview {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  opacity: 0.8;
-}
-
-.article-preview.korean-preview {
-  color: var(--text);
-  font-weight: 500;
-  opacity: 1;
-}
-
-.preview-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-right: 4px;
-  opacity: 0.6;
-}
-
-.article-actions {
-  display: flex;
-  align-items: center;
-  padding: 0 16px 0 0;
-  border-left: var(--border-primary-light);
-}
-
-.delete-btn {
+.scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-  color: var(--gray-300);
 }
 
-.delete-btn:hover {
-  background: var(--r-100);
-  color: var(--r-600);
-}
-
-.history-modal-footer {
-  padding: 16px 20px;
-  border-top: var(--border-primary-light);
-  display: flex;
-  justify-content: flex-end;
-}
-
-.close-btn-bottom {
-  padding: 10px 24px;
-  background: var(--gradient-btn);
-  border: none;
-  border-radius: var(--radius-md);
-  color: var(--text-white);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.close-btn-bottom:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-primary-hover);
-}
-
-@media (max-width: 768px) {
-  .history-modal {
-    width: 95%;
-    max-height: 90vh;
-  }
-  
-  .list-header {
-    padding: 10px 16px;
-  }
-  
-  .articles-container {
-    padding: 6px 8px;
-  }
-  
-  .article-content {
-    padding: 12px 14px;
-  }
-  
-  .article-actions {
-    padding: 0 12px 0 0;
-  }
-  
-  .article-title {
-    font-size: 14px;
-  }
-  
-  .article-preview {
-    font-size: 12px;
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-  
-  .history-modal-footer {
-    padding: 12px 16px;
-  }
-}
-</style>
-<!-- 
-<style scoped>
-.history-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.history-modal {
-  background: white;
-  border-radius: 24px;
-  width: 75%;
-  max-width: 700px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-.history-modal.mobile {
-  width: 95%;
-  max-height: 90vh;
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 20px;
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
 }
 
-.history-modal-header {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 16px 20px 0;
-  border-bottom: none;
-}
-
-.close-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  color: #868e96;
-}
-
-.close-btn:hover {
-  background: #f8f9fa;
-  color: #2c3e50;
-}
-
-.history-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0 0;
-}
-
-.empty-history {
-  text-align: center;
-  padding: 60px 20px;
-  color: #868e96;
-}
-
-.empty-history p {
-  margin-top: 16px;
-  font-size: 16px;
-}
-
-.empty-subtitle {
-  font-size: 14px !important;
-  color: #adb5bd;
-}
-
-.articles-list {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.list-header {
-  padding: 12px 20px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  color: #6c757d;
-  font-weight: 500;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.delete-all-btn {
-  padding: 6px 12px;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  color: #dc2626;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
-}
-
-.delete-all-btn:hover {
-  background: #fecaca;
-  transform: translateY(-1px);
-}
-
-.articles-container {
-  padding: 8px 12px;
-}
-
-.article-item {
-  display: flex;
-  align-items: stretch;
-  background: white;
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  transition: all 0.2s;
-  overflow: hidden;
-}
-
-.article-item:hover {
-  border-color: #4a6cf7;
-  box-shadow: 0 2px 12px rgba(74, 108, 247, 0.1);
-  transform: translateY(-2px);
-}
-
-.article-item.current {
-  border-color: #4a6cf7;
-  background: #f0f4ff;
-  box-shadow: 0 2px 12px rgba(74, 108, 247, 0.15);
-}
-
-.article-content {
-  flex: 1;
-  padding: 16px 20px;
-  cursor: pointer;
-}
-
-.article-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.article-title-section {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.article-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-  word-break: break-word;
-}
-
-.current-badge {
-  font-size: 11px;
-  font-weight: 600;
-  color: #4a6cf7;
-  background: #e8f0fe;
-  padding: 2px 10px;
-  border-radius: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.article-date {
-  font-size: 12px;
-  color: #868e96;
-  white-space: nowrap;
-}
-
-.article-preview {
-  font-size: 13px;
-  color: #495057;
-  line-height: 1.5;
-  margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.article-preview.korean-preview {
-  color: #1a1a1a;
-  font-weight: 500;
-}
-
-.preview-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #868e96;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-right: 4px;
-}
-
-.article-actions {
-  display: flex;
-  align-items: center;
-  padding: 0 16px 0 0;
-  border-left: 1px solid #e9ecef;
-}
-
-.delete-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  color: #adb5bd;
-}
-
-.delete-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.history-modal-footer {
-  padding: 16px 20px;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.close-btn-bottom {
-  padding: 10px 24px;
-  background: #4a6cf7;
-  border: none;
-  border-radius: 10px;
-  color: white;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.close-btn-bottom:hover {
-  background: #3a5ce8;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(74, 108, 247, 0.3);
-}
-
+/* Mobile responsive */
 @media (max-width: 768px) {
-  .history-modal {
+  .w-\[95\%\] {
     width: 95%;
-    max-height: 90vh;
   }
   
-  .list-header {
-    padding: 10px 16px;
-  }
-  
-  .articles-container {
-    padding: 6px 8px;
-  }
-  
-  .article-content {
-    padding: 12px 14px;
-  }
-  
-  .article-actions {
-    padding: 0 12px 0 0;
-  }
-  
-  .article-title {
-    font-size: 14px;
-  }
-  
-  .article-preview {
-    font-size: 12px;
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-  
-  .history-modal-footer {
-    padding: 12px 16px;
+  .max-h-\[85vh\] {
+    max-height: 85vh;
   }
 }
-</style> -->
+
+/* Hide scrollbar for cleaner look */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+/* Smooth hover transitions */
+.group {
+  transition: all 0.2s ease;
+}
+
+/* Current article indicator */
+.border-purple-300 {
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.bg-purple-50\/50 {
+  background: rgba(139, 92, 246, 0.05);
+}
+
+/* Floating close button hover */
+.absolute.-top-3.-right-3 {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+</style>

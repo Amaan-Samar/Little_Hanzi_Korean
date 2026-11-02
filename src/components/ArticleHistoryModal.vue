@@ -58,6 +58,11 @@
                     <span class="text-[10px] text-gray-400 whitespace-nowrap pt-0.5 flex-shrink-0">
                       {{ formatDate(article.timestamp) }}
                     </span>
+                    <div v-if="article.bookmark !== null && article.bookmark !== undefined" class="mt-1.5">
+                      <span class="text-[10px] text-purple-500 font-medium flex items-center gap-1">
+                        🔖 Bookmarked
+                      </span>
+                    </div>
                   </div>
                   
                   <!-- Read More Indicator -->

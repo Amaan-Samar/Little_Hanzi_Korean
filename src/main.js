@@ -5,7 +5,6 @@ import router from './router'
 import './style.css'
 
 import './assets/main.css'
-// import '../register-service-worker.js lets do it one more time'
 
 const app = createApp(App)
 

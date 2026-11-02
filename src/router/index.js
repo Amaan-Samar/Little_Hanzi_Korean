@@ -6,13 +6,8 @@ const router = createRouter({
     {
       path: '/',
       name: 'converter',
-      component: () => import('../components/KoreanConverter.vue'), // Removed /index.js
+      component: () => import('../components/KoreanConverter.vue'), 
     },
-    // {
-    //   path: '/about',
-    //   name: 'about',
-    //   component: () => import('../views/AboutView.vue'),
-    // },
   ],
 })
 
